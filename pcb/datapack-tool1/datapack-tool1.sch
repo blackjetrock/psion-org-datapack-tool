@@ -92,8 +92,8 @@ $Comp
 L 74xx:74LS245 U?
 U 1 1 63677927
 P 4850 2325
-F 0 "U?" H 4850 3306 50  0000 C CNN
-F 1 "74LS245" H 4850 3215 50  0000 C CNN
+F 0 "U?" H 5100 3325 50  0000 C CNN
+F 1 "74LS245" H 5225 3250 50  0000 C CNN
 F 2 "" H 4850 2325 50  0001 C CNN
 F 3 "http://www.ti.com/lit/gpn/sn74LS245" H 4850 2325 50  0001 C CNN
 	1    4850 2325
@@ -103,11 +103,182 @@ $Comp
 L 74xx:74LS245 U?
 U 1 1 63678AE8
 P 4900 4675
-F 0 "U?" H 4900 5656 50  0000 C CNN
-F 1 "74LS245" H 4900 5565 50  0000 C CNN
+F 0 "U?" H 5750 5650 50  0000 C CNN
+F 1 "74LS245" H 5850 5550 50  0000 C CNN
 F 2 "" H 4900 4675 50  0001 C CNN
 F 3 "http://www.ti.com/lit/gpn/sn74LS245" H 4900 4675 50  0001 C CNN
 	1    4900 4675
 	1    0    0    -1  
 $EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 6367C304
+P 2325 4350
+F 0 "#PWR?" H 2325 4100 50  0001 C CNN
+F 1 "GND" H 2330 4177 50  0000 C CNN
+F 2 "" H 2325 4350 50  0001 C CNN
+F 3 "" H 2325 4350 50  0001 C CNN
+	1    2325 4350
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 6367C6EB
+P 4850 3250
+F 0 "#PWR?" H 4850 3000 50  0001 C CNN
+F 1 "GND" H 4855 3077 50  0000 C CNN
+F 2 "" H 4850 3250 50  0001 C CNN
+F 3 "" H 4850 3250 50  0001 C CNN
+	1    4850 3250
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 6367CA98
+P 4900 5625
+F 0 "#PWR?" H 4900 5375 50  0001 C CNN
+F 1 "GND" H 4905 5452 50  0000 C CNN
+F 2 "" H 4900 5625 50  0001 C CNN
+F 3 "" H 4900 5625 50  0001 C CNN
+	1    4900 5625
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3V3 #PWR?
+U 1 1 6367D4B6
+P 3425 1850
+F 0 "#PWR?" H 3425 1700 50  0001 C CNN
+F 1 "+3V3" H 3440 2023 50  0000 C CNN
+F 2 "" H 3425 1850 50  0001 C CNN
+F 3 "" H 3425 1850 50  0001 C CNN
+	1    3425 1850
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3V3 #PWR?
+U 1 1 6367D50D
+P 4900 3725
+F 0 "#PWR?" H 4900 3575 50  0001 C CNN
+F 1 "+3V3" H 4915 3898 50  0000 C CNN
+F 2 "" H 4900 3725 50  0001 C CNN
+F 3 "" H 4900 3725 50  0001 C CNN
+	1    4900 3725
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3V3 #PWR?
+U 1 1 6367D984
+P 4850 1275
+F 0 "#PWR?" H 4850 1125 50  0001 C CNN
+F 1 "+3V3" H 4865 1448 50  0000 C CNN
+F 2 "" H 4850 1275 50  0001 C CNN
+F 3 "" H 4850 1275 50  0001 C CNN
+	1    4850 1275
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4850 1275 4850 1525
+Wire Wire Line
+	3425 1850 3425 2375
+Wire Wire Line
+	3425 2375 3025 2375
+Wire Wire Line
+	4850 3125 4850 3250
+Wire Wire Line
+	4900 5475 4900 5625
+Wire Wire Line
+	4900 3725 4900 3875
+Wire Wire Line
+	2325 4075 2325 4350
+$Comp
+L power:GND #PWR?
+U 1 1 63680DDA
+P 1325 4350
+F 0 "#PWR?" H 1325 4100 50  0001 C CNN
+F 1 "GND" H 1330 4177 50  0000 C CNN
+F 2 "" H 1325 4350 50  0001 C CNN
+F 3 "" H 1325 4350 50  0001 C CNN
+	1    1325 4350
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 6368129A
+P 3475 4350
+F 0 "#PWR?" H 3475 4100 50  0001 C CNN
+F 1 "GND" H 3480 4177 50  0000 C CNN
+F 2 "" H 3475 4350 50  0001 C CNN
+F 3 "" H 3475 4350 50  0001 C CNN
+	1    3475 4350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1325 4350 1325 3675
+Wire Wire Line
+	1325 3675 1625 3675
+Wire Wire Line
+	1625 3175 1325 3175
+Wire Wire Line
+	1325 3175 1325 3675
+Connection ~ 1325 3675
+Wire Wire Line
+	3475 4325 3475 3675
+Wire Wire Line
+	3475 3675 3025 3675
+Wire Wire Line
+	3475 3675 3475 3175
+Wire Wire Line
+	3475 3175 3025 3175
+Connection ~ 3475 3675
+Wire Wire Line
+	3475 3150 3475 2675
+Wire Wire Line
+	3475 2675 3025 2675
+Wire Wire Line
+	1325 3175 1325 2675
+Wire Wire Line
+	1325 2675 1625 2675
+Connection ~ 1325 3175
+Wire Wire Line
+	1625 2175 1325 2175
+Wire Wire Line
+	1325 2175 1325 2675
+Connection ~ 1325 2675
+Wire Wire Line
+	3025 2175 3475 2175
+Wire Wire Line
+	3475 2175 3475 2675
+Connection ~ 3475 2675
+Text GLabel 5350 1825 2    50   Input ~ 0
+P_SD0
+Text GLabel 5350 1925 2    50   Input ~ 0
+P_SD1
+Text GLabel 5350 2025 2    50   Input ~ 0
+P_SD2
+Text GLabel 5350 2125 2    50   Input ~ 0
+P_SD3
+Text GLabel 5350 2225 2    50   Input ~ 0
+P_SD4
+Text GLabel 5350 2325 2    50   Input ~ 0
+P_SD5
+Text GLabel 5350 2425 2    50   Input ~ 0
+P_SD6
+Text GLabel 5350 2525 2    50   Input ~ 0
+P_SD7
+Text GLabel 4350 1825 0    50   Input ~ 0
+SD0
+Text GLabel 4350 1925 0    50   Input ~ 0
+SD1
+Text GLabel 4350 2025 0    50   Input ~ 0
+SD2
+Text GLabel 4350 2125 0    50   Input ~ 0
+SD3
+Text GLabel 4350 2225 0    50   Input ~ 0
+SD4
+Text GLabel 4350 2325 0    50   Input ~ 0
+SD5
+Text GLabel 4350 2425 0    50   Input ~ 0
+SD6
+Text GLabel 4350 2525 0    50   Input ~ 0
+SD7
 $EndSCHEMATC
