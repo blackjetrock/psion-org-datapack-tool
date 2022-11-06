@@ -3,7 +3,7 @@ EELAYER 30 0
 EELAYER END
 $Descr A3 16535 11693
 encoding utf-8
-Sheet 2 4
+Sheet 2 5
 Title "Psion Organiser 2 Re-Creation "
 Date "2022-08-20"
 Rev "REV2.0"
@@ -89,7 +89,7 @@ Wire Wire Line
 	3425 2050 3425 2150
 $Comp
 L power:GND #PWR?
-U 1 1 5F00B2D4
+U 1 1 6370685A
 P 2000 2225
 F 0 "#PWR?" H 2000 1975 50  0001 C CNN
 F 1 "GND" H 2005 2052 50  0000 C CNN
@@ -196,11 +196,11 @@ Wire Wire Line
 	6925 3650 6925 3775
 $Comp
 L mirotan-due-cassette-shield-cache:+3.3V #PWR?
-U 1 1 611C2F8D
+U 1 1 6370685D
 P 6925 3650
-AR Path="/6104FF77/611C2F8D" Ref="#PWR?"  Part="1" 
-AR Path="/611C2F8D" Ref="#PWR023"  Part="1" 
-AR Path="/6366C142/611C2F8D" Ref="#PWR?"  Part="1" 
+AR Path="/6104FF77/6370685D" Ref="#PWR?"  Part="1" 
+AR Path="/6370685D" Ref="#PWR023"  Part="1" 
+AR Path="/6366C142/6370685D" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 6925 3500 50  0001 C CNN
 F 1 "+3.3V" H 6940 3823 50  0000 C CNN
 F 2 "" H 6925 3650 50  0001 C CNN
@@ -212,12 +212,12 @@ Text GLabel 5375 5125 0    50   Input ~ 0
 LS_DIR
 $Comp
 L Device:R_Small R?
-U 1 1 611C2F98
+U 1 1 6370685E
 P 5650 4675
-AR Path="/60C45767/611C2F98" Ref="R?"  Part="1" 
-AR Path="/611C2F98" Ref="R15"  Part="1" 
-AR Path="/6104FF77/611C2F98" Ref="R?"  Part="1" 
-AR Path="/6366C142/611C2F98" Ref="R?"  Part="1" 
+AR Path="/60C45767/6370685E" Ref="R?"  Part="1" 
+AR Path="/6370685E" Ref="R15"  Part="1" 
+AR Path="/6104FF77/6370685E" Ref="R?"  Part="1" 
+AR Path="/6366C142/6370685E" Ref="R?"  Part="1" 
 F 0 "R?" H 5709 4721 50  0000 L CNN
 F 1 "100k" H 5709 4630 50  0000 L CNN
 F 2 "Resistor_SMD:R_0805_2012Metric" H 5650 4675 50  0001 C CNN
@@ -1145,11 +1145,11 @@ F 3 "~" H 7500 5225 50  0001 C CNN
 $EndComp
 $Comp
 L 74xx:74LS245 U?
-U 1 1 611C2F85
+U 1 1 6370685C
 P 6925 4725
-AR Path="/6104FF77/611C2F85" Ref="U?"  Part="1" 
-AR Path="/611C2F85" Ref="U7"  Part="1" 
-AR Path="/6366C142/611C2F85" Ref="U?"  Part="1" 
+AR Path="/6104FF77/6370685C" Ref="U?"  Part="1" 
+AR Path="/6370685C" Ref="U7"  Part="1" 
+AR Path="/6366C142/6370685C" Ref="U?"  Part="1" 
 F 0 "U?" H 7075 5725 50  0000 C CNN
 F 1 "74LS245" H 7175 5625 50  0000 C CNN
 F 2 "Package_SO:TSSOP-20_4.4x6.5mm_P0.65mm" H 6925 4725 50  0001 C CNN

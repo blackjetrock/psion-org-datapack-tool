@@ -3,7 +3,7 @@ EELAYER 30 0
 EELAYER END
 $Descr A3 16535 11693
 encoding utf-8
-Sheet 4 4
+Sheet 4 8
 Title "RP2040 Minimal Design Example"
 Date "2020-12-18"
 Rev "REV1"
@@ -253,7 +253,7 @@ Wire Wire Line
 	7100 3200 7000 3200
 $Comp
 L power:+3V3 #PWR?
-U 1 1 5EED9BA4
+U 1 1 63706859
 P 8450 2350
 F 0 "#PWR?" H 8450 2200 50  0001 C CNN
 F 1 "+3V3" H 8465 2523 50  0000 C CNN
@@ -810,11 +810,11 @@ Text GLabel 4550 10575 2    50   Input ~ 0
 SD2
 $Comp
 L power:GND #PWR?
-U 1 1 61058D25
+U 1 1 6370685B
 P 3550 10725
-AR Path="/6104FF77/61058D25" Ref="#PWR?"  Part="1" 
-AR Path="/61058D25" Ref="#PWR0101"  Part="1" 
-AR Path="/63690FA3/61058D25" Ref="#PWR?"  Part="1" 
+AR Path="/6104FF77/6370685B" Ref="#PWR?"  Part="1" 
+AR Path="/6370685B" Ref="#PWR0101"  Part="1" 
+AR Path="/63690FA3/6370685B" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 3550 10475 50  0001 C CNN
 F 1 "GND" H 3550 10550 50  0000 C CNN
 F 2 "" H 3550 10725 50  0001 C CNN
@@ -991,11 +991,11 @@ Wire Wire Line
 Connection ~ 13550 4875
 $Comp
 L 74xx:74LS245 U?
-U 1 1 611C2FA6
+U 1 1 6370685F
 P 14800 1975
-AR Path="/6104FF77/611C2FA6" Ref="U?"  Part="1" 
-AR Path="/611C2FA6" Ref="U9"  Part="1" 
-AR Path="/63690FA3/611C2FA6" Ref="U?"  Part="1" 
+AR Path="/6104FF77/6370685F" Ref="U?"  Part="1" 
+AR Path="/6370685F" Ref="U9"  Part="1" 
+AR Path="/63690FA3/6370685F" Ref="U?"  Part="1" 
 F 0 "U?" H 14975 2825 50  0000 C CNN
 F 1 "74LS245" H 15075 2725 50  0000 C CNN
 F 2 "Package_SO:TSSOP-20_4.4x6.5mm_P0.65mm" H 14800 1975 50  0001 C CNN

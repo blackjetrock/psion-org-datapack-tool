@@ -3,7 +3,7 @@ EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 1 4
+Sheet 1 2
 Title ""
 Date ""
 Rev ""
@@ -24,73 +24,67 @@ F 3 "" H 2025 1800 50  0001 C CNN
 	1    2025 1800
 	1    0    0    -1  
 $EndComp
-$Sheet
-S 6100 750  1325 500 
-U 6366C142
-F0 "Sheet6366C141" 50
-F1 "org2power.sch" 50
-$EndSheet
 $Comp
 L Connector_Generic:Conn_02x08_Odd_Even J?
 U 1 1 636773E8
-P 8775 2475
+P 10075 2075
 AR Path="/6366C142/636773E8" Ref="J?"  Part="1" 
 AR Path="/636773E8" Ref="J?"  Part="1" 
-F 0 "J?" H 8825 2992 50  0000 C CNN
-F 1 "Conn_02x08_Odd_Even" H 8825 2901 50  0000 C CNN
-F 2 "ajm_kicad:PinHeader_2x08_P2.54mm_Horizontal_psionSide" H 8775 2475 50  0001 C CNN
-F 3 "~" H 8775 2475 50  0001 C CNN
-	1    8775 2475
+F 0 "J?" H 10125 2592 50  0000 C CNN
+F 1 "Conn_02x08_Odd_Even" H 10125 2501 50  0000 C CNN
+F 2 "ajm_kicad:PinHeader_2x08_P2.54mm_Horizontal_psionSide" H 10075 2075 50  0001 C CNN
+F 3 "~" H 10075 2075 50  0001 C CNN
+	1    10075 2075
 	1    0    0    -1  
 $EndComp
-Text GLabel 9075 2175 2    50   Input ~ 0
+Text GLabel 10375 1775 2    50   Input ~ 0
 P_SD0
-Text GLabel 8575 2175 0    50   Input ~ 0
+Text GLabel 9875 1775 0    50   Input ~ 0
 P_SD1
-Text GLabel 9075 2275 2    50   Input ~ 0
+Text GLabel 10375 1875 2    50   Input ~ 0
 P_SD2
-Text GLabel 8575 2275 0    50   Input ~ 0
+Text GLabel 9875 1875 0    50   Input ~ 0
 P_SD3
-Text GLabel 9075 2375 2    50   Input ~ 0
+Text GLabel 10375 1975 2    50   Input ~ 0
 P_SD4
-Text GLabel 8575 2375 0    50   Input ~ 0
+Text GLabel 9875 1975 0    50   Input ~ 0
 P_SD5
-Text GLabel 9075 2475 2    50   Input ~ 0
+Text GLabel 10375 2075 2    50   Input ~ 0
 P_SD6
-Text GLabel 8575 2475 0    50   Input ~ 0
+Text GLabel 9875 2075 0    50   Input ~ 0
 P_SD7
-Text GLabel 8575 2575 0    50   Input ~ 0
+Text GLabel 9875 2175 0    50   Input ~ 0
 P_SMR
-Text GLabel 9075 2575 2    50   Input ~ 0
+Text GLabel 10375 2175 2    50   Input ~ 0
 P_SCLK
-Text GLabel 8575 2675 0    50   Input ~ 0
+Text GLabel 9875 2275 0    50   Input ~ 0
 P_SOE
-Text GLabel 9075 2675 2    50   Input ~ 0
+Text GLabel 10375 2275 2    50   Input ~ 0
 P_SS1
 $Comp
 L power:GND #PWR?
 U 1 1 636773FA
-P 8350 3100
+P 9650 2700
 AR Path="/6366C142/636773FA" Ref="#PWR?"  Part="1" 
 AR Path="/636773FA" Ref="#PWR?"  Part="1" 
-F 0 "#PWR?" H 8350 2850 50  0001 C CNN
-F 1 "GND" H 8355 2927 50  0000 C CNN
-F 2 "" H 8350 3100 50  0001 C CNN
-F 3 "" H 8350 3100 50  0001 C CNN
-	1    8350 3100
+F 0 "#PWR?" H 9650 2450 50  0001 C CNN
+F 1 "GND" H 9655 2527 50  0000 C CNN
+F 2 "" H 9650 2700 50  0001 C CNN
+F 3 "" H 9650 2700 50  0001 C CNN
+	1    9650 2700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8350 2775 8575 2775
+	9650 2375 9875 2375
 Wire Wire Line
-	8350 2775 8350 3100
-Text GLabel 8050 2875 0    50   Input ~ 0
+	9650 2375 9650 2700
+Text GLabel 9350 2475 0    50   Input ~ 0
 VCC_SLOT
 Wire Wire Line
-	8575 2875 8050 2875
-Text GLabel 9075 2775 2    50   Input ~ 0
+	9875 2475 9350 2475
+Text GLabel 10375 2375 2    50   Input ~ 0
 P_SPGM
-Text GLabel 9075 2875 2    50   Input ~ 0
+Text GLabel 10375 2475 2    50   Input ~ 0
 VPP_DRIVE
 $Comp
 L 74xx:74LS245 U?
@@ -107,8 +101,8 @@ $Comp
 L 74xx:74LS245 U?
 U 1 1 63678AE8
 P 4900 4675
-F 0 "U?" H 5750 5650 50  0000 C CNN
-F 1 "74LS245" H 5850 5550 50  0000 C CNN
+F 0 "U?" H 5100 5600 50  0000 C CNN
+F 1 "74LS245" H 5225 5475 50  0000 C CNN
 F 2 "" H 4900 4675 50  0001 C CNN
 F 3 "http://www.ti.com/lit/gpn/sn74LS245" H 4900 4675 50  0001 C CNN
 	1    4900 4675
@@ -354,7 +348,7 @@ F 3 "" H 9800 4550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Text GLabel 8700 3925 0    50   Input ~ 0
-5V
+VPP_SUPPLY
 $Comp
 L Device:R_Small R?
 U 1 1 6369052A
@@ -387,34 +381,22 @@ Connection ~ 9175 3925
 $Comp
 L power:GND #PWR?
 U 1 1 63690539
-P 9175 5950
+P 9175 6025
 AR Path="/6366C142/63690539" Ref="#PWR?"  Part="1" 
 AR Path="/63690539" Ref="#PWR?"  Part="1" 
-F 0 "#PWR?" H 9175 5700 50  0001 C CNN
-F 1 "GND" H 9180 5777 50  0000 C CNN
-F 2 "" H 9175 5950 50  0001 C CNN
-F 3 "" H 9175 5950 50  0001 C CNN
-	1    9175 5950
+F 0 "#PWR?" H 9175 5775 50  0001 C CNN
+F 1 "GND" H 9180 5852 50  0000 C CNN
+F 2 "" H 9175 6025 50  0001 C CNN
+F 3 "" H 9175 6025 50  0001 C CNN
+	1    9175 6025
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	9175 5950 9175 5700
 Text GLabel 10225 5200 2    50   Input ~ 0
-VCC_SLOT
+VPP_DRIVE
 Wire Wire Line
 	9900 4850 9900 5200
 Wire Wire Line
 	9900 5200 10225 5200
-Text GLabel 8575 5500 0    50   Input ~ 0
-5V_ON
-Wire Wire Line
-	8575 5500 8875 5500
-$Sheet
-S 7825 775  950  375 
-U 63690FA3
-F0 "Sheet63690FA2" 50
-F1 "picopak.sch" 50
-$EndSheet
 $Comp
 L Connector:Conn_01x04_Female J?
 U 1 1 636A2829
@@ -470,8 +452,6 @@ Wire Wire Line
 	1175 6975 2550 6975
 Wire Wire Line
 	1175 6875 2050 6875
-Text Notes 2000 6350 0    50   ~ 0
-Internal pull-ups
 $Comp
 L Device:R_Small R?
 U 1 1 636A2843
@@ -479,7 +459,7 @@ P 2050 6650
 AR Path="/63690FA3/636A2843" Ref="R?"  Part="1" 
 AR Path="/636A2843" Ref="R?"  Part="1" 
 F 0 "R?" H 2109 6696 50  0000 L CNN
-F 1 "R_Small" H 2109 6605 50  0000 L CNN
+F 1 "4k7" H 2109 6605 50  0000 L CNN
 F 2 "Capacitor_SMD:C_0402_1005Metric" H 2050 6650 50  0001 C CNN
 F 3 "~" H 2050 6650 50  0001 C CNN
 	1    2050 6650
@@ -492,7 +472,7 @@ P 2550 6650
 AR Path="/63690FA3/636A2849" Ref="R?"  Part="1" 
 AR Path="/636A2849" Ref="R?"  Part="1" 
 F 0 "R?" H 2609 6696 50  0000 L CNN
-F 1 "R_Small" H 2609 6605 50  0000 L CNN
+F 1 "4k7" H 2609 6605 50  0000 L CNN
 F 2 "Capacitor_SMD:C_0402_1005Metric" H 2550 6650 50  0001 C CNN
 F 3 "~" H 2550 6650 50  0001 C CNN
 	1    2550 6650
@@ -606,6 +586,8 @@ $Comp
 L power:GND #PWR?
 U 1 1 636A9B98
 P 3925 7225
+AR Path="/63690FA3/636A9B98" Ref="#PWR?"  Part="1" 
+AR Path="/636A9B98" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 3925 6975 50  0001 C CNN
 F 1 "GND" H 3930 7052 50  0000 C CNN
 F 2 "" H 3925 7225 50  0001 C CNN
@@ -617,6 +599,8 @@ $Comp
 L power:GND #PWR?
 U 1 1 636A9B9E
 P 4600 7225
+AR Path="/63690FA3/636A9B9E" Ref="#PWR?"  Part="1" 
+AR Path="/636A9B9E" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 4600 6975 50  0001 C CNN
 F 1 "GND" H 4605 7052 50  0000 C CNN
 F 2 "" H 4600 7225 50  0001 C CNN
@@ -628,6 +612,8 @@ $Comp
 L power:GND #PWR?
 U 1 1 636A9BA4
 P 5275 7225
+AR Path="/63690FA3/636A9BA4" Ref="#PWR?"  Part="1" 
+AR Path="/636A9BA4" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 5275 6975 50  0001 C CNN
 F 1 "GND" H 5280 7052 50  0000 C CNN
 F 2 "" H 5275 7225 50  0001 C CNN
@@ -639,6 +625,8 @@ $Comp
 L power:GND #PWR?
 U 1 1 636A9BAA
 P 5975 7225
+AR Path="/63690FA3/636A9BAA" Ref="#PWR?"  Part="1" 
+AR Path="/636A9BAA" Ref="#PWR?"  Part="1" 
 F 0 "#PWR?" H 5975 6975 50  0001 C CNN
 F 1 "GND" H 5980 7052 50  0000 C CNN
 F 2 "" H 5975 7225 50  0001 C CNN
@@ -806,4 +794,65 @@ MISO_D0
 Wire Wire Line
 	3175 1550 3175 2050
 Connection ~ 3175 2050
+Text GLabel 8100 5500 0    50   Input ~ 0
+VPP_ON
+$Comp
+L Device:R_Small R?
+U 1 1 636F0992
+P 8525 5875
+F 0 "R?" H 8584 5921 50  0000 L CNN
+F 1 "10k" H 8584 5830 50  0000 L CNN
+F 2 "" H 8525 5875 50  0001 C CNN
+F 3 "~" H 8525 5875 50  0001 C CNN
+	1    8525 5875
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 636F1ABE
+P 8525 6050
+AR Path="/6366C142/636F1ABE" Ref="#PWR?"  Part="1" 
+AR Path="/636F1ABE" Ref="#PWR?"  Part="1" 
+F 0 "#PWR?" H 8525 5800 50  0001 C CNN
+F 1 "GND" H 8530 5877 50  0000 C CNN
+F 2 "" H 8525 6050 50  0001 C CNN
+F 3 "" H 8525 6050 50  0001 C CNN
+	1    8525 6050
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	9175 5700 9175 6025
+Wire Wire Line
+	8525 6050 8525 5975
+Wire Wire Line
+	8100 5500 8525 5500
+Wire Wire Line
+	8525 5775 8525 5500
+Connection ~ 8525 5500
+Wire Wire Line
+	8525 5500 8875 5500
+Text GLabel 2725 2650 2    50   Input ~ 0
+VPP_ON
+$Sheet
+S 6875 1675 1000 575 
+U 63706713
+F0 "Sheet63706712" 50
+F1 "usb.sch" 50
+$EndSheet
+Text GLabel 3375 850  2    50   Input ~ 0
+VPP_IN
+Wire Wire Line
+	2725 850  3375 850 
+Text GLabel 3375 1450 2    50   Input ~ 0
+SW0
+Wire Wire Line
+	3375 1450 2725 1450
+Text GLabel 3375 1650 2    50   Input ~ 0
+SW1
+Wire Wire Line
+	3375 1650 2725 1650
+Text GLabel 3375 1750 2    50   Input ~ 0
+SW2
+Wire Wire Line
+	3375 1750 2725 1750
 $EndSCHEMATC
