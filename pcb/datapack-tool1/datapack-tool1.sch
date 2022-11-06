@@ -281,4 +281,50 @@ Text GLabel 4350 2425 0    50   Input ~ 0
 SD6
 Text GLabel 4350 2525 0    50   Input ~ 0
 SD7
+Text GLabel 1625 1975 0    50   Input ~ 0
+SD0
+Text GLabel 1625 2075 0    50   Input ~ 0
+SD1
+Text GLabel 1625 2275 0    50   Input ~ 0
+SD2
+Text GLabel 1625 2375 0    50   Input ~ 0
+SD3
+Text GLabel 1625 2475 0    50   Input ~ 0
+SD4
+Text GLabel 1625 2575 0    50   Input ~ 0
+SD5
+Text GLabel 1625 2775 0    50   Input ~ 0
+SD6
+Text GLabel 1625 2875 0    50   Input ~ 0
+SD7
+Text GLabel 5400 4175 2    50   Input ~ 0
+P_SMR
+Text GLabel 5400 4275 2    50   Input ~ 0
+P_SOE
+Text GLabel 5400 4575 2    50   Input ~ 0
+P_SCLK
+Text GLabel 5400 4475 2    50   Input ~ 0
+P_SS1
+Text GLabel 5400 4375 2    50   Input ~ 0
+P_SPGM
+Text GLabel 4400 4175 0    50   Input ~ 0
+SMR
+Text GLabel 4400 4275 0    50   Input ~ 0
+SOE
+Text GLabel 4400 4375 0    50   Input ~ 0
+SPGM
+Text GLabel 4400 4475 0    50   Input ~ 0
+SS
+Text GLabel 4400 4575 0    50   Input ~ 0
+SCLK
+Text GLabel 1625 2975 0    50   Input ~ 0
+SMR
+Text GLabel 1625 3075 0    50   Input ~ 0
+SOE
+Text GLabel 1625 3275 0    50   Input ~ 0
+SPGM
+Text GLabel 1625 3375 0    50   Input ~ 0
+SS
+Text GLabel 1625 3475 0    50   Input ~ 0
+SCLK
 $EndSCHEMATC
