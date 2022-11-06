@@ -562,26 +562,6 @@ Wire Wire Line
 	3925 7075 3925 7225
 Text GLabel 5675 6675 2    50   Input ~ 0
 SW2
-Wire Wire Line
-	5975 7075 5975 7225
-$Comp
-L mirotan-due-cassette-shield-cache:Switch_SW_SPST SW?
-U 1 1 636A9B90
-P 5975 6875
-AR Path="/6104FF77/636A9B90" Ref="SW?"  Part="1" 
-AR Path="/636A9B90" Ref="SW?"  Part="1" 
-AR Path="/63690FA3/636A9B90" Ref="SW?"  Part="1" 
-F 0 "SW?" V 5929 6973 50  0000 L CNN
-F 1 "sw" V 6020 6973 50  0000 L CNN
-F 2 "Button_Switch_SMD:SW_Push_1P1T_NO_Vertical_Wuerth_434133025816" H 5975 6875 50  0001 C CNN
-F 3 "" H 5975 6875 50  0001 C CNN
-	1    5975 6875
-	0    1    1    0   
-$EndComp
-Text GLabel 6375 6675 2    50   Input ~ 0
-SW3
-Wire Wire Line
-	6375 6675 5975 6675
 $Comp
 L power:GND #PWR?
 U 1 1 636A9B98
@@ -619,19 +599,6 @@ F 1 "GND" H 5280 7052 50  0000 C CNN
 F 2 "" H 5275 7225 50  0001 C CNN
 F 3 "" H 5275 7225 50  0001 C CNN
 	1    5275 7225
-	1    0    0    -1  
-$EndComp
-$Comp
-L power:GND #PWR?
-U 1 1 636A9BAA
-P 5975 7225
-AR Path="/63690FA3/636A9BAA" Ref="#PWR?"  Part="1" 
-AR Path="/636A9BAA" Ref="#PWR?"  Part="1" 
-F 0 "#PWR?" H 5975 6975 50  0001 C CNN
-F 1 "GND" H 5980 7052 50  0000 C CNN
-F 2 "" H 5975 7225 50  0001 C CNN
-F 3 "" H 5975 7225 50  0001 C CNN
-	1    5975 7225
 	1    0    0    -1  
 $EndComp
 Text Notes 4275 6300 0    50   ~ 0
