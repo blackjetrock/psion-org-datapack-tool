@@ -122,12 +122,12 @@ $EndComp
 $Comp
 L power:GND #PWR0103
 U 1 1 6367C6EB
-P 4850 3250
-F 0 "#PWR0103" H 4850 3000 50  0001 C CNN
-F 1 "GND" H 4855 3077 50  0000 C CNN
-F 2 "" H 4850 3250 50  0001 C CNN
-F 3 "" H 4850 3250 50  0001 C CNN
-	1    4850 3250
+P 6575 1300
+F 0 "#PWR0103" H 6575 1050 50  0001 C CNN
+F 1 "GND" H 6580 1127 50  0000 C CNN
+F 2 "" H 6575 1300 50  0001 C CNN
+F 3 "" H 6575 1300 50  0001 C CNN
+	1    6575 1300
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -144,12 +144,12 @@ $EndComp
 $Comp
 L power:+3V3 #PWR0105
 U 1 1 6367D4B6
-P 3125 725
-F 0 "#PWR0105" H 3125 575 50  0001 C CNN
-F 1 "+3V3" H 3140 898 50  0000 C CNN
-F 2 "" H 3125 725 50  0001 C CNN
-F 3 "" H 3125 725 50  0001 C CNN
-	1    3125 725 
+P 4250 850
+F 0 "#PWR0105" H 4250 700 50  0001 C CNN
+F 1 "+3V3" H 4265 1023 50  0000 C CNN
+F 2 "" H 4250 850 50  0001 C CNN
+F 3 "" H 4250 850 50  0001 C CNN
+	1    4250 850 
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -177,9 +177,7 @@ $EndComp
 Wire Wire Line
 	4850 1275 4850 1525
 Wire Wire Line
-	3125 725  3125 1250
-Wire Wire Line
-	3125 1250 2725 1250
+	4250 1250 2725 1250
 Wire Wire Line
 	4850 3125 4850 3250
 Wire Wire Line
@@ -767,7 +765,7 @@ $EndSheet
 Text GLabel 3375 850  2    50   Input ~ 0
 VPP_IN
 Wire Wire Line
-	2725 850  3375 850 
+	2725 850  3075 850 
 Text GLabel 3375 1450 2    50   Input ~ 0
 SW0
 Wire Wire Line
@@ -975,4 +973,123 @@ Wire Wire Line
 	975  6875 2500 6875
 Wire Wire Line
 	975  6975 3000 6975
+$Comp
+L Device:Jumper_NO_Small JP5
+U 1 1 63745F7B
+P 4250 1150
+F 0 "JP5" V 4204 1198 50  0000 L CNN
+F 1 "Jumper_NO_Small" V 4295 1198 50  0000 L CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 4250 1150 50  0001 C CNN
+F 3 "~" H 4250 1150 50  0001 C CNN
+	1    4250 1150
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:Jumper_NO_Small JP6
+U 1 1 63746CAC
+P 7150 875
+F 0 "JP6" H 7150 1060 50  0000 C CNN
+F 1 "Jumper_NO_Small" H 7150 969 50  0000 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 7150 875 50  0001 C CNN
+F 3 "~" H 7150 875 50  0001 C CNN
+	1    7150 875 
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4250 850  4250 1050
+$Comp
+L pak_breakout:AMS1117-3.3 U4
+U 1 1 6374C131
+P 6575 875
+F 0 "U4" H 6575 1117 50  0000 C CNN
+F 1 "AMS1117-3.3" H 6575 1026 50  0000 C CNN
+F 2 "Package_TO_SOT_SMD:SOT-223-3_TabPin2" H 6575 1075 50  0001 C CNN
+F 3 "" H 6675 625 50  0001 C CNN
+	1    6575 875 
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6575 1300 6575 1225
+Wire Wire Line
+	6875 875  6975 875 
+Wire Wire Line
+	3075 850  3075 575 
+Wire Wire Line
+	3075 575  5850 575 
+Wire Wire Line
+	5850 575  5850 875 
+Wire Wire Line
+	5850 875  5975 875 
+Connection ~ 3075 850 
+Wire Wire Line
+	3075 850  3375 850 
+$Comp
+L power:+3V3 #PWR0123
+U 1 1 6375A2DF
+P 7700 750
+F 0 "#PWR0123" H 7700 600 50  0001 C CNN
+F 1 "+3V3" H 7715 923 50  0000 C CNN
+F 2 "" H 7700 750 50  0001 C CNN
+F 3 "" H 7700 750 50  0001 C CNN
+	1    7700 750 
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7250 875  7700 875 
+Wire Wire Line
+	7700 875  7700 750 
+$Comp
+L Device:C_Small C1
+U 1 1 63762D32
+P 5975 1075
+F 0 "C1" H 6067 1121 50  0000 L CNN
+F 1 "100nF" H 6067 1030 50  0000 L CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric" H 5975 1075 50  0001 C CNN
+F 3 "~" H 5975 1075 50  0001 C CNN
+	1    5975 1075
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:C_Small C2
+U 1 1 6376314C
+P 6975 1075
+F 0 "C2" H 7067 1121 50  0000 L CNN
+F 1 "100nF" H 7067 1030 50  0000 L CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric" H 6975 1075 50  0001 C CNN
+F 3 "~" H 6975 1075 50  0001 C CNN
+	1    6975 1075
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6975 975  6975 875 
+Connection ~ 6975 875 
+Wire Wire Line
+	6975 875  7050 875 
+Wire Wire Line
+	5975 875  5975 975 
+Connection ~ 5975 875 
+Wire Wire Line
+	5975 875  6275 875 
+Wire Wire Line
+	5975 1175 5975 1225
+Wire Wire Line
+	5975 1225 6575 1225
+Connection ~ 6575 1225
+Wire Wire Line
+	6575 1225 6575 1175
+Wire Wire Line
+	6575 1225 6975 1225
+Wire Wire Line
+	6975 1225 6975 1175
+$Comp
+L power:GND #PWR0124
+U 1 1 637823D8
+P 4850 3250
+F 0 "#PWR0124" H 4850 3000 50  0001 C CNN
+F 1 "GND" H 4855 3077 50  0000 C CNN
+F 2 "" H 4850 3250 50  0001 C CNN
+F 3 "" H 4850 3250 50  0001 C CNN
+	1    4850 3250
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
