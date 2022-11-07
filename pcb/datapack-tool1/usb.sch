@@ -3,7 +3,7 @@ EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 5 2
+Sheet 2 2
 Title "Psion Organiser 2 USB Adapter"
 Date ""
 Rev "1.1"
@@ -298,14 +298,14 @@ F 3 "~" H 4500 3975 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3500 3550 4500 3550
+	3500 3550 4225 3550
 Wire Wire Line
 	4500 3350 4500 3550
 Wire Wire Line
 	4500 3600 4500 3550
 Connection ~ 4500 3550
 Wire Wire Line
-	4500 3800 4500 3875
+	4500 3800 4500 3825
 Wire Wire Line
 	2500 4150 3200 4150
 Wire Wire Line
@@ -316,7 +316,7 @@ Wire Wire Line
 	3200 4225 3200 4150
 Connection ~ 3200 4150
 Wire Wire Line
-	3200 4150 4500 4150
+	3200 4150 4225 4150
 Wire Wire Line
 	3200 3750 3200 4150
 Wire Wire Line
@@ -334,4 +334,46 @@ Wire Wire Line
 Wire Wire Line
 	6300 3550 6300 4150
 Connection ~ 5875 4150
+$Comp
+L Device:R_Small R9
+U 1 1 636AA642
+P 4225 3675
+F 0 "R9" H 4284 3721 50  0000 L CNN
+F 1 "R_Small" H 4284 3630 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric" H 4225 3675 50  0001 C CNN
+F 3 "~" H 4225 3675 50  0001 C CNN
+	1    4225 3675
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R_Small R10
+U 1 1 636AB08C
+P 4225 3975
+F 0 "R10" H 4284 4021 50  0000 L CNN
+F 1 "R_Small" H 4284 3930 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric" H 4225 3975 50  0001 C CNN
+F 3 "~" H 4225 3975 50  0001 C CNN
+	1    4225 3975
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4225 3575 4225 3550
+Connection ~ 4225 3550
+Wire Wire Line
+	4225 3550 4500 3550
+Wire Wire Line
+	4225 3775 4225 3825
+Wire Wire Line
+	4225 4075 4225 4150
+Connection ~ 4225 4150
+Wire Wire Line
+	4225 4150 4500 4150
+Wire Wire Line
+	4225 3825 4500 3825
+Connection ~ 4225 3825
+Wire Wire Line
+	4225 3825 4225 3875
+Connection ~ 4500 3825
+Wire Wire Line
+	4500 3825 4500 3875
 $EndSCHEMATC
