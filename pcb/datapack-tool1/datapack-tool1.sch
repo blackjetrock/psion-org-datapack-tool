@@ -1092,4 +1092,12 @@ F 3 "" H 4850 3250 50  0001 C CNN
 	1    4850 3250
 	1    0    0    -1  
 $EndComp
+Text GLabel 3375 975  2    50   Input ~ 0
+VCC_SLOT
+Wire Wire Line
+	3375 975  3075 975 
+Wire Wire Line
+	3075 975  3075 850 
+Text Notes 2775 550  0    50   ~ 0
++5V for datapack and DC-DC converter
 $EndSCHEMATC
