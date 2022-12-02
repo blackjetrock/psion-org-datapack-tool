@@ -35,14 +35,14 @@
 #define DEBUG_STOP {volatile int x = 1; while(x) {} }
 
 // Are we compiling for the gadget breakout or the picopak?
-#define PICOPAK 1
+#define PICOPAK 0
 
 // Drop into a loop that displays key states and does nothing else
 #define KEY_DEBUG_ONLY                0
 
 // Interrupts may muck up the pack interface, but it does seem to run with them enabled.
 // If USB is ever to work then interrupts need to be enabled.
-#define NO_INTERRUPTS_WHILE_POLLING   1
+#define NO_INTERRUPTS_WHILE_POLLING   0
 #define TEST_STDIO                    0
 
 // Redefine pins to match our hardware
@@ -106,35 +106,35 @@ const uint SCL_PIN             = 14;
 typedef unsigned char BYTE;
 
 // Buttons got changed for PCB layout reasons
-#if PICOPAK
+#if 0
 const int SW0_PIN       = 0;
 const int SW1_PIN       = 1;
 const int SW2_PIN       = 5;
 const int SW3_PIN       = 26;
 #else
-const int SW0_PIN       = 0;
-const int SW1_PIN       = 1;
+const int SW0_PIN       = 28;
+const int SW1_PIN       = 27;
 const int SW2_PIN       = 26;
-const int SW3_PIN       = 5;
+//const int SW3_PIN       = 5;
 #endif
 
-const int SLOT_SPGM_PIN = 2;
-const int SLOT_SS_PIN   = 3;
-const int SLOT_SCLK_PIN = 4;
+const int SLOT_SPGM_PIN = 10;
+const int SLOT_SS_PIN   = 11;
+const int SLOT_SCLK_PIN = 12;
 
-const int SLOT_SOE_PIN  = 6;
-const int SLOT_SMR_PIN  = 7;
+const int SLOT_SOE_PIN  = 9;
+const int SLOT_SMR_PIN  = 8;
 
-const int SLOT_SD0_PIN  = 8;
-const int SLOT_SD1_PIN  = 9;
-const int SLOT_SD2_PIN  = 10;
-const int SLOT_SD3_PIN  = 11;
-const int SLOT_SD4_PIN  = 12;
-const int SLOT_SD5_PIN  = 13;
-const int SLOT_SD6_PIN  = 14;
-const int SLOT_SD7_PIN  = 15;
+const int SLOT_SD0_PIN  = 0;
+const int SLOT_SD1_PIN  = 1;
+const int SLOT_SD2_PIN  = 2;
+const int SLOT_SD3_PIN  = 3;
+const int SLOT_SD4_PIN  = 4;
+const int SLOT_SD5_PIN  = 5;
+const int SLOT_SD6_PIN  = 6;
+const int SLOT_SD7_PIN  = 7;
 
-const int LS_DIR_PIN    = 27;
+const int LS_DIR_PIN    = 13;
 
 volatile int ss_count = 0;
 volatile int soe_state = 1;
@@ -3851,6 +3851,7 @@ int main()
 #endif
     }
 
+#if 0  
   // SW3 is special for now
   gpio_init(SW3_PIN);
   gpio_set_dir(SW3_PIN, GPIO_IN);
@@ -3859,6 +3860,7 @@ int main()
   // Set pull ups for buttons
   gpio_set_pulls(SW3_PIN, 1, 0);
 #endif
+  #endif
   
   printf("\nSetting up OLED...");
     
@@ -3879,10 +3881,67 @@ int main()
 
   int count = 0;
 
+    // Read config file into memory buffer
+  // That will tell us which file to load
+  process_config_file(&oled0);
+
+
+  // datapack tool main loop
+
+  while(1)
+    {
+      printf("\nPak gadget\n");
+      stdio_flush();
+
+            // Overall loop, which contains the polling loop and the menu loop
+      oled_clear_display(&oled0);
+      
+      oled_set_xy(&oled0, 0,0);
+      oled_display_string(&oled0, "Datapak Gadget");
+      
+#if USE_INTERRUPTS
+      oled_set_xy(&oled0, 0,14);
+      oled_display_string(&oled0, "Interrupts");
+#endif
+
+      
+#if 0      
+#if USE_POLLING
+      oled_set_xy(&oled0, 0,14);
+      oled_display_string(&oled0, "Polling");
+#endif
+#endif
+
+      sprintf(line, "%s", current_file);
+      oled_set_xy(&oled0, 0, 14);
+      oled_display_string(&oled0, line);
+      
+      // Mount and unmount the SD card to set the sd_ok_flag up
+      mount_sd();
+      unmount_sd();
+      
+      oled_set_xy(&oled0, 0,21);
+      if( sd_ok_flag )
+	{
+	  oled_display_string(&oled0, "SD card OK");
+	}
+      else
+	{
+	  oled_display_string(&oled0, "SD card NOT OK");
+	}
+
+      while(1)
+	{
+	}
+      
+    }
+
+  
 #if MULTICORE_POLL
   // Start the address handling on the other core
   multicore_launch_core1(handle_address);
 #endif
+
   
   // Main loop that updates OLED display if using interrupts
 #if USE_INTERRUPTS
@@ -3904,16 +3963,14 @@ int main()
 #if USE_POLLING
   // Use a polling loop for minimum latency
 
+#if 0  
 #if NO_INTERRUPTS_WHILE_POLLING  
   // Turn off timer interrupts
   irq_set_mask_enabled(0xf, false);
 #endif
+#endif
 
-
-  // Read config file into memory buffer
-  // That will tell us which file to load
-  process_config_file(&oled0);
-
+  
   while(1)
     {
       int last_ss;
@@ -3991,7 +4048,7 @@ int main()
       while(1)
 	{
 	  oled_set_xy(&oled0, 0,0);
-	  sprintf(line, "%d %d %d %d", gpio_get(SW0_PIN),gpio_get(SW1_PIN),gpio_get(SW2_PIN),gpio_get(SW3_PIN));
+	  sprintf(line, "%d %d %d", gpio_get(SW0_PIN),gpio_get(SW1_PIN),gpio_get(SW2_PIN));
 	  oled_display_string(&oled0, line);
 	}
 #endif
@@ -3999,7 +4056,7 @@ int main()
       while(1)
 	{
 	  // Check to see if we should exit polling
-	  if( gpio_get(SW3_PIN) == 0 )
+	  if( gpio_get(SW0_PIN) == 0 )
 	    {
 	      // Drop out of polling loop
 	      break;
