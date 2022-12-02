@@ -1,0 +1,8 @@
+Psion Organiser datapack Tool V1.0 errata
+=========================================
+
+1. Datapack connector is awkward
+2. 4k7 pull ups for I2C have wrong footprint
+3. Potentiometer needed in vpp supply
+
+
