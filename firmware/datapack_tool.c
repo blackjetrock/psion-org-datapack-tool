@@ -31,6 +31,30 @@
 #include "rtc.h"
 #include "sd_card.h"
 
+typedef uint8_t byte;
+typedef uint16_t word;
+typedef int boolean;
+
+const byte data_pin[] = {0, 1, 2, 3, 4, 5, 6, 7}; // pins D0 to D7 on Datapak
+
+boolean paged_addr = true; // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
+boolean datapak_mode = true; // true for datapaks, false for rampaks, mode can be changed by command option
+boolean program_low = false; // will be set true when PGM_N is low during datapak write, so page counter can be pulsed accordingly
+const boolean force_write_cycles = false; // set true to perform max write cycles, without break for confirmed write
+const boolean overwrite = false; // set true to add a longer overwite after confirmed write
+const byte max_datapak_write_cycles = 5; // max. no. of write cycle attempts before failure
+const byte datapak_write_pulse = 100; // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
+word current_address = 0;
+#define max_eprom_size 0x8000 // max eprom size - 32k - only used by Matt's code
+
+boolean read_fixed_size = false; // true for fixed size
+//boolean read_fixed_size = true; // true for fixed size
+word read_pack_size = 0x7e9b; // set a fixed pack size for read
+//word read_pack_size = 0x0100; 
+
+byte CLK_val = 0; // flag to indicate CLK state
+
+
 // Use this if breakpoints don't work
 #define DEBUG_STOP {volatile int x = 1; while(x) {} }
 
@@ -151,6 +175,8 @@ typedef void (*CMD_FPTR)(char *cmd);
 #define TRACE_LENGTH 2
 BYTE trace0[TRACE_LENGTH];
 BYTE trace1[TRACE_LENGTH];
+
+void nextPage();
 
 volatile int trace_i = 0;
 #define TRACE0(XX) if(trace_i != (TRACE_LENGTH-1)) {trace0[trace_i++] = XX; /*trace_i %= TRACE_LENGTH;*/}
@@ -852,8 +878,8 @@ typedef struct {
   char const *const name;
 } fatfs_dscr_t;
 
-static fatfs_dscr_t fatfs_dscrs[2] = {{.name = "0:"}, {.name = "1:"}};
-static FATFS *get_fs_by_name(const char *name) {
+fatfs_dscr_t fatfs_dscrs[2] = {{.name = "0:"}, {.name = "1:"}};
+FATFS *get_fs_by_name(const char *name) {
   for (size_t i = 0; i < count_of(fatfs_dscrs); ++i) {
     if (0 == strcmp(fatfs_dscrs[i].name, name)) {
       return &fatfs_dscrs[i].fatfs;
@@ -863,9 +889,9 @@ static FATFS *get_fs_by_name(const char *name) {
 
 }
 
-static bool logger_enabled;
-static const uint32_t period = 1000;
-static absolute_time_t next_time;
+bool logger_enabled;
+const uint32_t period = 1000;
+absolute_time_t next_time;
 
 void button_select_file(struct MENU_ELEMENT *e);
 
@@ -1728,7 +1754,7 @@ void oled_setup(I2C_SLAVE_DESC *slave)
 
 }
 
-static void run_setrtc() {
+void run_setrtc() {
   const char *dateStr = strtok(NULL, " ");
   if (!dateStr) {
     printf("Missing argument\n");
@@ -1781,7 +1807,7 @@ static void run_setrtc() {
   // bool r = rtc_set_datetime(&t);
   setrtc(&t);
 }
-static void run_lliot() {
+void run_lliot() {
   size_t pnum = 0;
   char *arg1 = strtok(NULL, " ");
   if (arg1) {
@@ -1789,7 +1815,7 @@ static void run_lliot() {
   }
   //lliot(pnum);
 }
-static void run_date() {
+void run_date() {
   char buf[128] = {0};
   time_t epoch_secs = time(NULL);
   struct tm *ptm = localtime(&epoch_secs);
@@ -1801,7 +1827,7 @@ static void run_date() {
   // 001 to 366).
   printf("Day of year: %s\n", buf);
 }
-static void run_format() {
+void run_format() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) {
     printf("Missing argument\n");
@@ -1816,7 +1842,7 @@ static void run_format() {
   FRESULT fr = f_mkfs(arg1, 0, 0, FF_MAX_SS * 2);
   if (FR_OK != fr) printf("f_mkfs error: %s (%d)\n", FRESULT_str(fr), fr);
 }
-static void run_mount() {
+void run_mount() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "0:";
   FATFS *p_fs = get_fs_by_name(arg1);
@@ -1827,19 +1853,19 @@ static void run_mount() {
   FRESULT fr = f_mount(p_fs, arg1, 1);
   if (FR_OK != fr) printf("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
 }
-static void run_unmount() {
+void run_unmount() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "";
   FRESULT fr = f_unmount(arg1);
   if (FR_OK != fr) printf("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
 }
-static void run_chdrive() {
+void run_chdrive() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "0:";
   FRESULT fr = f_chdrive(arg1);
   if (FR_OK != fr) printf("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
 }
-static void run_getfree() {
+void run_getfree() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "0:";
   DWORD fre_clust, fre_sect, tot_sect;
@@ -1861,7 +1887,7 @@ static void run_getfree() {
   printf("%10lu KiB total drive space.\n%10lu KiB available.\n", tot_sect / 2,
 	 fre_sect / 2);
 }
-static void run_cd() {
+void run_cd() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) {
     printf("Missing argument\n");
@@ -1870,7 +1896,7 @@ static void run_cd() {
   FRESULT fr = f_chdir(arg1);
   if (FR_OK != fr) printf("f_mkfs error: %s (%d)\n", FRESULT_str(fr), fr);
 }
-static void run_mkdir() {
+void run_mkdir() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) {
     printf("Missing argument\n");
@@ -1936,20 +1962,20 @@ void find_next_file_number(void)
   
   while( (fr == FR_OK) && fno.fname[0])
     { 
-       if (fno.fattrib & AM_DIR)
-	 {
-	   // Directory, we ignore these
-	 }
-       else
-	 {
-	   int filenum;
-	   sscanf(fno.fname, "pak%d.opk", &filenum);
+      if (fno.fattrib & AM_DIR)
+	{
+	  // Directory, we ignore these
+	}
+      else
+	{
+	  int filenum;
+	  sscanf(fno.fname, "pak%d.opk", &filenum);
 
-	   if( filenum > max_filenum )
-	     {
-	       max_filenum = filenum;
-	     }
-	 }
+	  if( filenum > max_filenum )
+	    {
+	      max_filenum = filenum;
+	    }
+	}
        
       fr = f_findnext(&dj, &fno); /* Search for next item */
     }
@@ -1971,7 +1997,7 @@ void mount_sd(void)
 
 #if 0
   if (!p_fs)
-  {
+    {
       oled_error("Mount:Unknown drive:'0:'");
       return;
     }
@@ -2008,13 +2034,13 @@ int menu_size(struct MENU_ELEMENT *menu)
 {
   int result = 0;
   
-    while( menu->type != MENU_END )
+  while( menu->type != MENU_END )
     {
       result++;
       menu++;
     }
     
-    return(result);
+  return(result);
 }
 
 void button_list(struct MENU_ELEMENT *e)
@@ -2068,43 +2094,43 @@ void button_list(struct MENU_ELEMENT *e)
   
   while( (fr == FR_OK) && fno.fname[0] && (num_listfiles < MAX_LISTFILES) )
     { 
-       if (fno.fattrib & AM_DIR)
-	 {
-	   // Directory, we gnore these
-	 }
-       else
-	 {
-	   char extension[40];
-	   char name[80];
+      if (fno.fattrib & AM_DIR)
+	{
+	  // Directory, we gnore these
+	}
+      else
+	{
+	  char extension[40];
+	  char name[80];
 	   
-	   // If the file has an extension of .opk then display it
-	   // otherwise ignore.
-	   extension[0] = '\0';
+	  // If the file has an extension of .opk then display it
+	  // otherwise ignore.
+	  extension[0] = '\0';
 	   
-	   if( sscanf(fno.fname, "%[^.].%s", name, extension) )
-	     {
-	       if( strcmp(extension, "opk") == 0 )
-		 {
-		   // Create a new menu element
-		   // we also don't want to display anything before the offset
-		   if( file_n >= file_offset )
-		     {
-		       // It is an opk file so display it
-		       strncpy(&(names[num_listfiles][0]), fno.fname, MAX_NAME);
+	  if( sscanf(fno.fname, "%[^.].%s", name, extension) )
+	    {
+	      if( strcmp(extension, "opk") == 0 )
+		{
+		  // Create a new menu element
+		  // we also don't want to display anything before the offset
+		  if( file_n >= file_offset )
+		    {
+		      // It is an opk file so display it
+		      strncpy(&(names[num_listfiles][0]), fno.fname, MAX_NAME);
 		       
-		       //	display.println(&(names[nu);
-		       listfiles[num_listfiles].text = &(names[num_listfiles][0]);
-		       listfiles[num_listfiles].type = BUTTON_ELEMENT;
-		       listfiles[num_listfiles].submenu = NULL;
-		       listfiles[num_listfiles].function = button_select_file;
+		      //	display.println(&(names[nu);
+		      listfiles[num_listfiles].text = &(names[num_listfiles][0]);
+		      listfiles[num_listfiles].type = BUTTON_ELEMENT;
+		      listfiles[num_listfiles].submenu = NULL;
+		      listfiles[num_listfiles].function = button_select_file;
 		       
-		       num_listfiles++;
-		     }
-	   	   // Next file
-		   file_n++;
-		 }
-	     }
-	 }
+		      num_listfiles++;
+		    }
+		  // Next file
+		  file_n++;
+		}
+	    }
+	}
        
       fr = f_findnext(&dj, &fno); /* Search for next item */
     }
@@ -2136,51 +2162,67 @@ void button_list(struct MENU_ELEMENT *e)
   unmount_sd();
 }
 
-static void run_ls() {
+void run_ls()
+{
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "";
   ls(arg1);
 }
-static void run_cat() {
+
+void run_cat()
+{
   char *arg1 = strtok(NULL, " ");
-  if (!arg1) {
-    printf("Missing argument\n");
-    return;
-  }
+  if (!arg1)
+    {
+      printf("Missing argument\n");
+      return;
+    }
+  
   FIL fil;
   FRESULT fr = f_open(&fil, arg1, FA_READ);
-  if (FR_OK != fr) {
-    printf("f_open error: %s (%d)\n", FRESULT_str(fr), fr);
-    return;
-  }
+  if (FR_OK != fr)
+    {
+      printf("f_open error: %s (%d)\n", FRESULT_str(fr), fr);
+      return;
+    }
   char buf[256];
   while (f_gets(buf, sizeof buf, &fil)) {
     printf("%s", buf);
   }
   fr = f_close(&fil);
-  if (FR_OK != fr) printf("f_open error: %s (%d)\n", FRESULT_str(fr), fr);
+  if (FR_OK != fr)
+    {
+      printf("f_open error: %s (%d)\n", FRESULT_str(fr), fr);
+    }
 }
-static void run_big_file_test() {
+
+
+void run_big_file_test() {
   const char *pcPathName = strtok(NULL, " ");
-  if (!pcPathName) {
-    printf("Missing argument\n");
-    return;
-  }
+  if (!pcPathName)
+    {
+      printf("Missing argument\n");
+      return;
+    }
   const char *pcSize = strtok(NULL, " ");
-  if (!pcSize) {
-    printf("Missing argument\n");
-    return;
-  }
+  if (!pcSize)
+    {
+      printf("Missing argument\n");
+      return;
+    }
   size_t size = strtoul(pcSize, 0, 0);
   const char *pcSeed = strtok(NULL, " ");
-  if (!pcSeed) {
-    printf("Missing argument\n");
-    return;
-  }
+  if (!pcSeed)
+    {
+      printf("Missing argument\n");
+      return;
+    }
+  
   uint32_t seed = atoi(pcSeed);
   //big_file_test(pcPathName, size, seed);
 }
-static void del_node(const char *path) {
+void del_node(const char *path)
+{
   FILINFO fno;
   char buff[256];
   /* Directory to be deleted */
@@ -2193,7 +2235,7 @@ static void del_node(const char *path) {
     printf("%s error: %s (%d)\n", __func__, FRESULT_str(fr), fr);
   }
 }
-static void run_del_node() {
+void run_del_node() {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) {
     printf("Missing argument\n");
@@ -2201,12 +2243,12 @@ static void run_del_node() {
   }
   del_node(arg1);
 }
-static void run_cdef() {
+void run_cdef() {
   f_mkdir("/cdef");  // fake mountpoint
   //vCreateAndVerifyExampleFiles("/cdef");
 }
-static void run_swcwdt() { /*vStdioWithCWDTest("/cdef");*/ }
-static void run_loop_swcwdt() {
+void run_swcwdt() { /*vStdioWithCWDTest("/cdef");*/ }
+void run_loop_swcwdt() {
   int cRxedChar = 0;
   do {
     del_node("/cdef");
@@ -2215,12 +2257,12 @@ static void run_loop_swcwdt() {
     cRxedChar = getchar_timeout_us(0);
   } while (PICO_ERROR_TIMEOUT == cRxedChar);
 }
-static void run_start_logger() {
+void run_start_logger() {
   logger_enabled = true;
   next_time = delayed_by_ms(get_absolute_time(), period);
 }
-static void run_stop_logger() { logger_enabled = false; }
-static void run_help();
+void run_stop_logger() { logger_enabled = false; }
+void run_help();
 
 typedef void (*p_fn_t)();
 typedef struct {
@@ -2229,90 +2271,90 @@ typedef struct {
   char const *const help;
 } cmd_def_t;
 
-static const cmd_def_t cmds[] = {
-			   {"setrtc", run_setrtc,
-			    "setrtc <DD> <MM> <YY> <hh> <mm> <ss>:\n"
-			    "  Set Real Time Clock\n"
-			    "  Parameters: new date (DD MM YY) new time in 24-hour format "
-			    "(hh mm ss)\n"
-			    "\te.g.:setrtc 16 3 21 0 4 0"},
-			   {"date", run_date, "date:\n Print current date and time"},
-			   {"lliot", run_lliot,
-			    "lliot <drive#>:\n !DESTRUCTIVE! Low Level I/O Driver Test\n"
-			    "\te.g.: lliot 1"},
-			   {"format", run_format,
-			    "format [<drive#:>]:\n"
-			    "  Creates an FAT/exFAT volume on the logical drive.\n"
-			    "\te.g.: format 0:"},
-			   {"mount", run_mount,
-			    "mount [<drive#:>]:\n"
-			    "  Register the work area of the volume\n"
-			    "\te.g.: mount 0:"},
-			   {"unmount", run_unmount,
-			    "unmount <drive#:>:\n"
-			    "  Unregister the work area of the volume"},
-			   {"chdrive", run_chdrive,
-			    "chdrive <drive#:>:\n"
-			    "  Changes the current directory of the logical drive.\n"
-			    "  <path> Specifies the directory to be set as current directory.\n"
-			    "\te.g.: chdrive 1:"},
-			   {"getfree", run_getfree,
-			    "getfree [<drive#:>]:\n"
-			    "  Print the free space on drive"},
-			   {"cd", run_cd,
-			    "cd <path>:\n"
-			    "  Changes the current directory of the logical drive.\n"
-			    "  <path> Specifies the directory to be set as current directory.\n"
-			    "\te.g.: cd /dir1"},
-			   {"mkdir", run_mkdir,
-			    "mkdir <path>:\n"
-			    "  Make a new directory.\n"
-			    "  <path> Specifies the name of the directory to be created.\n"
-			    "\te.g.: mkdir /dir1"},
-			   {"del_node", run_del_node,
-			    "del_node <path>:\n"
-			    "  Remove directory and all of its contents.\n"
-			    "  <path> Specifies the name of the directory to be deleted.\n"
-			    "\te.g.: del_node /dir1"},
-			   {"ls", run_ls, "ls:\n  List directory"},
-			   {"cat", run_cat, "cat <filename>:\n  Type file contents"},
-			   //    {"simple", simple, "simple:\n  Run simple FS tests"},
-			   {"big_file_test", run_big_file_test,
-			    "big_file_test <pathname> <size in bytes> <seed>:\n"
-			    " Writes random data to file <pathname>.\n"
-			    " <size in bytes> must be multiple of 512.\n"
-			    "\te.g.: big_file_test bf 1048576 1\n"
-			    "\tor: big_file_test big3G-3 0xC0000000 3"},
-			   {"cdef", run_cdef,
-			    "cdef:\n  Create Disk and Example Files\n"
-			    "  Expects card to be already formatted and mounted"},
-			   {"swcwdt", run_swcwdt,
-			    "\nswcwdt:\n Stdio With CWD Test\n"
-			    "Expects card to be already formatted and mounted.\n"
-			    "Note: run cdef first!"},
-			   {"loop_swcwdt", run_loop_swcwdt,
-			    "\nloop_swcwdt:\n Run Create Disk and Example Files and Stdio With CWD "
-			    "Test in a loop.\n"
-			    "Expects card to be already formatted and mounted.\n"
-			    "Note: Type any key to quit."},
-			   {"start_logger", run_start_logger,
-			    "start_logger:\n"
-			    "  Start Data Log Demo"},
-			   {"stop_logger", run_stop_logger,
-			    "stop_logger:\n"
-			    "  Stop Data Log Demo"},
-			   {"help", run_help,
-			    "help:\n"
-			    "  Shows this command help."}};
-static void run_help() {
+const cmd_def_t cmds[] = {
+			  {"setrtc", run_setrtc,
+			   "setrtc <DD> <MM> <YY> <hh> <mm> <ss>:\n"
+			   "  Set Real Time Clock\n"
+			   "  Parameters: new date (DD MM YY) new time in 24-hour format "
+			   "(hh mm ss)\n"
+			   "\te.g.:setrtc 16 3 21 0 4 0"},
+			  {"date", run_date, "date:\n Print current date and time"},
+			  {"lliot", run_lliot,
+			   "lliot <drive#>:\n !DESTRUCTIVE! Low Level I/O Driver Test\n"
+			   "\te.g.: lliot 1"},
+			  {"format", run_format,
+			   "format [<drive#:>]:\n"
+			   "  Creates an FAT/exFAT volume on the logical drive.\n"
+			   "\te.g.: format 0:"},
+			  {"mount", run_mount,
+			   "mount [<drive#:>]:\n"
+			   "  Register the work area of the volume\n"
+			   "\te.g.: mount 0:"},
+			  {"unmount", run_unmount,
+			   "unmount <drive#:>:\n"
+			   "  Unregister the work area of the volume"},
+			  {"chdrive", run_chdrive,
+			   "chdrive <drive#:>:\n"
+			   "  Changes the current directory of the logical drive.\n"
+			   "  <path> Specifies the directory to be set as current directory.\n"
+			   "\te.g.: chdrive 1:"},
+			  {"getfree", run_getfree,
+			   "getfree [<drive#:>]:\n"
+			   "  Print the free space on drive"},
+			  {"cd", run_cd,
+			   "cd <path>:\n"
+			   "  Changes the current directory of the logical drive.\n"
+			   "  <path> Specifies the directory to be set as current directory.\n"
+			   "\te.g.: cd /dir1"},
+			  {"mkdir", run_mkdir,
+			   "mkdir <path>:\n"
+			   "  Make a new directory.\n"
+			   "  <path> Specifies the name of the directory to be created.\n"
+			   "\te.g.: mkdir /dir1"},
+			  {"del_node", run_del_node,
+			   "del_node <path>:\n"
+			   "  Remove directory and all of its contents.\n"
+			   "  <path> Specifies the name of the directory to be deleted.\n"
+			   "\te.g.: del_node /dir1"},
+			  {"ls", run_ls, "ls:\n  List directory"},
+			  {"cat", run_cat, "cat <filename>:\n  Type file contents"},
+			  //    {"simple", simple, "simple:\n  Run simple FS tests"},
+			  {"big_file_test", run_big_file_test,
+			   "big_file_test <pathname> <size in bytes> <seed>:\n"
+			   " Writes random data to file <pathname>.\n"
+			   " <size in bytes> must be multiple of 512.\n"
+			   "\te.g.: big_file_test bf 1048576 1\n"
+			   "\tor: big_file_test big3G-3 0xC0000000 3"},
+			  {"cdef", run_cdef,
+			   "cdef:\n  Create Disk and Example Files\n"
+			   "  Expects card to be already formatted and mounted"},
+			  {"swcwdt", run_swcwdt,
+			   "\nswcwdt:\n Stdio With CWD Test\n"
+			   "Expects card to be already formatted and mounted.\n"
+			   "Note: run cdef first!"},
+			  {"loop_swcwdt", run_loop_swcwdt,
+			   "\nloop_swcwdt:\n Run Create Disk and Example Files and Stdio With CWD "
+			   "Test in a loop.\n"
+			   "Expects card to be already formatted and mounted.\n"
+			   "Note: Type any key to quit."},
+			  {"start_logger", run_start_logger,
+			   "start_logger:\n"
+			   "  Start Data Log Demo"},
+			  {"stop_logger", run_stop_logger,
+			   "stop_logger:\n"
+			   "  Stop Data Log Demo"},
+			  {"help", run_help,
+			   "help:\n"
+			   "  Shows this command help."}};
+void run_help() {
   for (size_t i = 0; i < count_of(cmds); ++i) {
     printf("%s\n\n", cmds[i].help);
   }
 }
 
-static void process_stdio(int cRxedChar) {
-  static char cmd[256];
-  static size_t ix;
+void process_stdio(int cRxedChar) {
+  char cmd[256];
+  size_t ix;
 
   if (!isprint(cRxedChar) && !isspace(cRxedChar) && '\r' != cRxedChar &&
       '\b' != cRxedChar && cRxedChar != (char)127)
@@ -2916,11 +2958,11 @@ void button_list_old(struct MENU_ELEMENT *e)
     else
       {
 #if DEBUG	
-	Serial.print("BList-file_n:");
-	Serial.print(file_n);
-	Serial.print(entry.name());
-	Serial.print("  num_listfiles:");
-	Serial.println(num_listfiles);
+	printf("BList-file_n:");
+	printf(file_n);
+	printf(entry.name());
+	printf("  num_listfiles:");
+	printf("%d\n", num_listfiles);
 #endif
 	// Create a new menu element
 	// we also don't want to display anything before the offset
@@ -3119,11 +3161,11 @@ const struct MENU_ELEMENT home_menu[] =
   {
    {BUTTON_ELEMENT, "List",                       NULL,     button_list},
    {BUTTON_ELEMENT, "Write",                      NULL,     button_write},
-#if 0
+#if 1
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
 #endif   
    {BUTTON_ELEMENT, "Blank",                      NULL,     button_blank},
-#if 0   
+#if 1   
    {BUTTON_ELEMENT, "Read",                       NULL,     button_read},
 #endif
    {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
@@ -3445,6 +3487,278 @@ void update_buttons()
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Ported code from Martin Prest's datapack reader/writer
+//
+// https://github.com/martinprest/Psion2-Datapak-Rampak-reader-writer
+//
+// (git@github.com:martinprest/Psion2-Datapak-Rampak-reader-writer.git)
+//
+//------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------
+
+void delayShort() { // 1 us delay
+  sleep_us(1);
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void delayLong() { // 3 us delay
+  sleep_us(3);
+}
+
+void ArdDataPinsToInput(void)
+{
+  int i;
+  for(i=0; i<8; i++)
+    {
+      gpio_set_dir(data_pin[i], GPIO_IN);
+    }
+} 
+
+//------------------------------------------------------------------------------------------------------
+
+void packOutputAndSelect()
+{
+  // sets pack data pins to output and selects pack memory chip (EPROM or RAM)
+  gpio_put(SLOT_SOE_PIN, 0); // enable output - pack ready for read
+  delayShort(); // delay whilst pack data pins go to output
+  gpio_put(SLOT_SS_PIN, 0); // take memory chip CE_N low - select pack
+  delayShort();
+  delayShort();
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void packDeselectAndInput()
+{ // deselects pack memory chip and sets pack pins to input
+  gpio_put(SLOT_SS_PIN, 1); // take memory chip select high - deselect pack
+  delayShort();
+  gpio_put(SLOT_SOE_PIN, 1); // disable output - pack ready for write
+  delayShort(); // don't do anything until output disabled & pack data pins become input
+  delayShort();
+}
+
+//------------------------------------------------------------------------------------------------------
+
+byte readByte()
+{
+  // Reads Arduino data pins, assumes pins are in the input state
+  byte data = 0;
+  for (int8_t i = 7; i >= 0; i -= 1)
+    { // int8 type to allow -ve 8 bit numbers, so loop can end at -1
+      data = (data << 1) + digitalRead(data_pin[i]); // read each pin and shift pin values into data, starting at MSB
+    }
+  return data;
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void writeByte(byte data)
+{ // Writes to Arduino data pins, assumes pins are in the output state
+  for (byte i = 0; i <= 7; i += 1)
+    {
+      gpio_put(data_pin[i], data & 1); // write data bits to data_pin[i], starting at LSB 
+      data = data >> 1; // shift data right, so can AND with 1 to read next bit
+    }
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void resetAddrCounter()
+{ // Resets pack counters
+  gpio_put(SLOT_SCLK_PIN, 0); // start with clock low, CLK is LSB of address
+  delayShort();
+  CLK_val = 0; // set CLK state low
+  gpio_put(SLOT_SMR_PIN, 1); // reset address counter - asynchronous, doesn't require SS_N or OE_N
+  delayShort();
+  gpio_put(SLOT_SMR_PIN, 0);
+  delayShort();
+  //delayLong();
+  current_address = 0;
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void nextAddress()
+{ // toggles CLK to advance the address, CLK is LSB of address and triggers the counter
+  if (CLK_val == 0)
+    {
+      gpio_put(SLOT_SCLK_PIN, 1);
+      CLK_val = 1;
+    }
+  else if (CLK_val == 1)
+    {
+      gpio_put(SLOT_SCLK_PIN, 0);
+      CLK_val = 0;
+    }
+  delayShort(); // settling time, let datapak catch up with address
+  current_address++;
+  if (paged_addr && ((current_address & 0xFF) == 0))
+    {
+      nextPage(); // if paged mode and low byte of addr is zero (end of page) - advance page counter
+    }
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void nextPage()
+{ // pulses PGM low, -ve edge advance page counter
+  if (program_low)
+    { // if PGM_N low, pulse high then low
+      gpio_put(SLOT_SPGM_PIN, 1);
+      delayShort();
+      gpio_put(SLOT_SPGM_PIN, 0);
+      delayShort();
+    }
+  else
+    { // if PGM_N high, pulse low then high
+      gpio_put(SLOT_SPGM_PIN, 0); // -ve edge advances counter
+      delayShort();
+      gpio_put(SLOT_SPGM_PIN, 1);
+      delayShort();
+    }
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void setAddress(word addr)
+{
+  // resets counter then toggles counters to reach address, <word> so max address is 64k
+  resetAddrCounter(); // reset counters
+  byte page = (addr & 0xFF00) >> 8; // high byte of address
+  byte addr_low = addr & 0xFF; // low byte of address
+  if (paged_addr)
+    { // if paged addressing
+      for (byte p = 0; p < page; p++)
+	{
+	  nextPage();
+	} // call nextPage, until page reached
+    
+      for (byte a = 0; a < addr_low; a++)
+	{
+	  nextAddress();
+	} // call nextAddress, until addr_low reached  
+    }
+  else
+    { // else linear addressing
+      for (word a = 0; a < addr; a++)
+	{
+	  nextAddress();
+	} // call nextAddress, until addr reached 
+    }
+  delayShort(); // extra delay, not needed?
+  current_address = addr;
+}
+
+//------------------------------------------------------------------------------------------------------
+
+void printPageContents(byte page)
+{
+
+  // set address to start of page and print contents of page (256 bytes) to serial (formatted with addresses)
+  
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+  resetAddrCounter(); // reset address counter
+  
+  printf("%s\n", "addr  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  -------TEXT-------");
+  printf("%s\n", "------------------------------------------------------  01234567  89ABCDEF"); // comment out to save memory
+  
+  for (byte p = 0; p < page; p++)
+    { // page counter
+      if (paged_addr)
+	{ // paged addressing
+	  nextPage(); // call nextPage(), until page reached      
+	}
+      else
+	{ // linear addressing
+	  for (word a = 0; a <= 0xFF; a++)
+	    {
+	      nextAddress(); // call nextAddress() for every address in page, including 0xFF - so will advance to 0x100
+	    }
+	}
+    }
+  
+  for (word base = 0; base <= 255; base += 16)
+    { // loop through 0 to 255 in steps of 16, last step to 256
+      byte data;
+      char str[19] = ""; // fill with zeros, 16+2+1, +1 for char zero terminator
+      str[8] = 32; str[9] = 32; // gap in middle, 2 spaces
+
+      byte pos = 0;
+      char buf[6]; // buffer for sprintf: 5 chars + terminator
+
+      sprintf(buf, "%04x ", base + page * 0x100); // format page in hex
+
+      printf(buf);
+
+      for (byte offset = 0; offset <= 15; offset += 1)
+	{ // loop through 0 to 15
+	  if ((offset == 0) || (offset == 8))
+	    {
+	      printf(" "); // at 0 or 7 print an extra spaces
+	    }
+	
+	  data = readByte(); // read byte from pack
+	  sprintf(buf, "%02x ", data); // format data byte in hex
+	  printf(buf);
+      
+	  if ((data > 31) && (data < 127))
+	    { // if printable char, put in str        
+	      str[pos] = data;
+	    }
+	  else
+	    {
+	      str[pos] = '.'; // else use '.'
+	    }
+      
+	  pos++;
+
+	  if (pos == 8)
+	    {
+	      pos += 2; // jump 2 spaces after 8th char in str
+	    }
+      
+	  nextAddress();
+	}
+      printf(" ");
+      printf("%s\n", str);
+    
+      /*
+	char buf[80]; // buffer for sprintf - used too much memory
+	sprintf(buf, "%04x  %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x  %s",
+	base + page * 0x100, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+	data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+	printf("%s\n", buf);*/
+    }
+  packDeselectAndInput(); // deselect pack, then set pack data bus to input
+}
+
+//------------------------------------------------------------------------------------------------------
+
+byte readAddr(word addr, bool output) { // set address, read byte, print if output true, and return value
+
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+  setAddress(addr);
+
+  byte dat = readByte(); // read Arduino data bus
+  
+  if (output == true)
+    {
+      char buf[15];
+      sprintf(buf, "(Ard) %04x  %02x", addr, dat); // print to buf with 3 digits hex, then 2 digits hex, with leading zeros
+      printf("%s\n", buf);
+    }
+  
+  packDeselectAndInput(); // deselect pack, then set pack data bus to input
+
+  return dat;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 // read the value on the data bus
 
 const int data_gpio[8] =
@@ -3459,7 +3773,7 @@ const int data_gpio[8] =
    SLOT_SD7_PIN,
   };
 
-inline BYTE get_data_bus(void)
+BYTE get_data_bus(void)
 {
   int data = 0;
 
@@ -3488,7 +3802,7 @@ inline BYTE get_data_bus(void)
 }
 
 // Set the data bus to point to the Psion, i.e. outputs from us
-inline void set_bus_outputs(void)
+void set_bus_outputs(void)
 {
   // Drive level shifters to be driving Psion
 
@@ -3512,7 +3826,7 @@ inline void set_bus_outputs(void)
 }
 
 // Set data bus to drive us
-inline void set_bus_inputs(void)
+void set_bus_inputs(void)
 {
 
 #if DIRECT_GPIO
@@ -3541,7 +3855,7 @@ inline void set_bus_inputs(void)
 
 // Set up the data bus GPIO lines
 
-inline void set_data_bus(BYTE data)
+void set_data_bus(BYTE data)
 {
 #if DIRECT_GPIO
   int states;
@@ -3776,17 +4090,17 @@ int main()
   
 #if TEST_STDIO
   {
-  int count;
-  while (true)
-    {
-      count++;
+    int count;
+    while (true)
+      {
+	count++;
       
-      if( (count % 1000000) == 0 )
-	{
-	  sprintf(line, "\nRP2040: %d", count);
-	  printf(line);
-	}
-    }
+	if( (count % 1000000) == 0 )
+	  {
+	    sprintf(line, "\nRP2040: %d", count);
+	    printf(line);
+	  }
+      }
   }
 #endif
 
@@ -3860,7 +4174,7 @@ int main()
   // Set pull ups for buttons
   gpio_set_pulls(SW3_PIN, 1, 0);
 #endif
-  #endif
+#endif
   
   printf("\nSetting up OLED...");
     
@@ -3881,7 +4195,7 @@ int main()
 
   int count = 0;
 
-    // Read config file into memory buffer
+  // Read config file into memory buffer
   // That will tell us which file to load
   process_config_file(&oled0);
 
@@ -3890,111 +4204,9 @@ int main()
 
   while(1)
     {
-      printf("\nPak gadget\n");
+      printf("\nPsion Organiser Datapack Tool\n");
       stdio_flush();
 
-            // Overall loop, which contains the polling loop and the menu loop
-      oled_clear_display(&oled0);
-      
-      oled_set_xy(&oled0, 0,0);
-      oled_display_string(&oled0, "Datapak Gadget");
-      
-#if USE_INTERRUPTS
-      oled_set_xy(&oled0, 0,14);
-      oled_display_string(&oled0, "Interrupts");
-#endif
-
-      
-#if 0      
-#if USE_POLLING
-      oled_set_xy(&oled0, 0,14);
-      oled_display_string(&oled0, "Polling");
-#endif
-#endif
-
-      sprintf(line, "%s", current_file);
-      oled_set_xy(&oled0, 0, 14);
-      oled_display_string(&oled0, line);
-      
-      // Mount and unmount the SD card to set the sd_ok_flag up
-      mount_sd();
-      unmount_sd();
-      
-      oled_set_xy(&oled0, 0,21);
-      if( sd_ok_flag )
-	{
-	  oled_display_string(&oled0, "SD card OK");
-	}
-      else
-	{
-	  oled_display_string(&oled0, "SD card NOT OK");
-	}
-
-      while(1)
-	{
-	}
-      
-    }
-
-  
-#if MULTICORE_POLL
-  // Start the address handling on the other core
-  multicore_launch_core1(handle_address);
-#endif
-
-  
-  // Main loop that updates OLED display if using interrupts
-#if USE_INTERRUPTS
-  for (;;)
-    {
-#if 1
-      // Monitor the SS line and count how many falling edges there are
-      
-      sprintf(line, "%d %d %d %d        ", count, ss_count, ss_address, soe_state);
-      oled_set_xy(&oled0, 0, 21);
-      oled_display_string(&oled0, line);
-      
-      count++;
-#endif
-
-    }
-#endif  
-
-#if USE_POLLING
-  // Use a polling loop for minimum latency
-
-#if 0  
-#if NO_INTERRUPTS_WHILE_POLLING  
-  // Turn off timer interrupts
-  irq_set_mask_enabled(0xf, false);
-#endif
-#endif
-
-  
-  while(1)
-    {
-      int last_ss;
-      int last_sclk;
-      int last_soe;
-      int last_smr;
-      int last_spgm;
-  
-      last_ss     = gpio_get(SLOT_SS_PIN);
-      last_sclk   = gpio_get(SLOT_SCLK_PIN);
-      last_soe    = gpio_get(SLOT_SOE_PIN);
-      last_smr    = gpio_get(SLOT_SMR_PIN);
-      last_spgm   = gpio_get(SLOT_SPGM_PIN);
-      
-      int ss;
-      int sclk;
-      int soe;
-      int smr;
-      int spgm;
-
-      printf("\nPak gadget\n");
-      stdio_flush();
-      
-      
       // Overall loop, which contains the polling loop and the menu loop
       oled_clear_display(&oled0);
       
@@ -4032,282 +4244,8 @@ int main()
 	  oled_display_string(&oled0, "SD card NOT OK");
 	}
 
-      oled_set_xy(&oled0, 0,28);
-#if PICOPAK
-      oled_display_string(&oled0, "Left Button:Menu");
-#else      
-      oled_display_string(&oled0, "Bottom Button:Menu");
-#endif
+      sleep_ms(3000);
       
-      oled_set_xy(&oled0, 0,35);
-      //oled_display_string(&oled0, current_file);
-
-#if KEY_DEBUG_ONLY
-      oled_clear_display(&oled0);
-
-      while(1)
-	{
-	  oled_set_xy(&oled0, 0,0);
-	  sprintf(line, "%d %d %d", gpio_get(SW0_PIN),gpio_get(SW1_PIN),gpio_get(SW2_PIN));
-	  oled_display_string(&oled0, line);
-	}
-#endif
-      
-      while(1)
-	{
-	  // Check to see if we should exit polling
-	  if( gpio_get(SW0_PIN) == 0 )
-	    {
-	      // Drop out of polling loop
-	      break;
-	    }
-
-	  // Read GPIO states
-	  ss     = gpio_get(SLOT_SS_PIN);
-	  sclk   = gpio_get(SLOT_SCLK_PIN);
-	  soe    = gpio_get(SLOT_SOE_PIN);
-	  smr    = gpio_get(SLOT_SMR_PIN);
-	  spgm   = gpio_get(SLOT_SPGM_PIN);
-      
-	  if( (last_ss == 1) && (ss == 0) )
-	    {
-	      // We are selected, look at SOE to see if we should drive the data bus or not
-	      if ( soe )
-		{
-		  int data;
-	      
-		  // High so don't drive the data bus, this is either a write or
-		  // it is a write of the 128K EPROM segment register
-	      
-		  // Capture data on bus
-		  set_bus_inputs();
-		  data = get_data_bus();
-
-		  if( smr == 1 )
-		    {
-		      // Segment register write
-		      TRACE0('s');
-		      TRACE0(data);
-		    }
-		  else
-		    {
-		      TRACE0('W');
-		      TRACE0(data);
-		      TRACE0(ss_address & 0xff);
-		      TRACE0(ss_address >> 8);
-		  
-#if !READ_ONLY	      
-		      // write to ram
-		      pak_memory[PAK_ADDRESS] = data;
-#endif
-		    }
-		}
-	      else
-		{
-		  // Low, so this is a read
-		  // Is it a read of the pak ID?
-		  //	      if( gpio_get(SLOT_SMR_PIN) && gpio_get(SLOT_SPGM_PIN) )
-		  if( smr && spgm )
-		    {
-		      // ID byte
-		      set_bus_outputs();
-#if SUPPORT_ID_BYTE
-		      TRACE0('I');
-		      TRACE0(PAK_ID_BYTE);
-		      set_data_bus(PAK_ID_BYTE);
-#else
-		      TRACE0('W');
-		      TRACE0(pak_memory[PAK_ADDRESS]);
-		      TRACE0(ss_address & 0xff);
-		      TRACE0(ss_address >> 8);
-
-		      set_data_bus(pak_memory[PAK_ADDRESS]);
-#endif
-		    }
-		  else
-		    {
-		      // Read of pak memory
-		      set_bus_outputs();
-		      TRACE0('r');
-		      TRACE0(pak_memory[ss_address]);
-		      set_data_bus(pak_memory[PAK_ADDRESS]);
-		    }
-		}
-	    }
-      
-	  if( (last_ss == 0 ) && (ss == 1) )
-	    {
-	      // SS high, so we are de-selected
-	      set_bus_inputs();
-	  
-	      if ( soe )
-		{
-		  int data;
-	      
-		  // High so don't drive the data bus, this is either a write of the
-		  // 128K EPROM segment register or a write
-	      
-		  // Capture data on bus
-		  //	      set_bus_inputs();
-		  data = get_data_bus();
-
-		  if( smr == 1 )
-		    {
-		      // 128K segment write
-		      TRACE0('s');
-		      TRACE0(data);
-		    }
-		  else
-		    {
-		      TRACE0('w');
-		      TRACE0(data);
-		      TRACE0(ss_address & 0xff);
-		      TRACE0(ss_address >> 8);
-
-
-#if !READ_ONLY	      
-		      // write to ram
-		      pak_memory[PAK_ADDRESS] = data;
-#endif
-		    }
-		}
-	    }
-
-#if !MULTICORE_POLLING      
-	  //----------------------------------------------------------------------
-	  // SCLK handling
-	  // The lower address bit is the CLK line
-	  // Falling edge
-	  if( (last_sclk == 1) && (sclk == 0))
-	    {
-#if 0	  
-	      ss_address+=2;
-	      ss_address &= (~1);
-	  
-	      // Wrap address
-	      ss_address &= PAK_MEMORY_SIZE - 1;
-#endif
-	    }
-
-      
-	  // Rising edge
-	  if( (last_sclk == 0) && (sclk == 1))
-	    {
-	      //	  ss_address |= 1;
-	  
-	      // We now have to present data if we are selected
-	      if( ss == 0 )
-		{
-		  // We are selected, look at SOE to see if we should drive the data bus or not
-		  if ( soe )
-		    {
-		      int data;
-		  
-		      // High so don't drive the data bus, this is a write
-		      // Capture data on bus
-		      set_bus_inputs();
-
-		      // We don't write here as SS hasn't gone high and OE hasn't gone high
-		      //data = get_data_bus();
-
-#if !READ_ONLY		  
-		      // write to ram
-		      //pak_memory[PAK_ADDRESS] = data;
-#endif
-		    }
-		  else
-		    {
-		      // Low, so this is a read
-		      // Is it a read of the pak ID?
-		      if( smr && spgm )
-			{
-			  TRACE0('I');
-			  TRACE0('D');
-			  // ID byte
-			  set_bus_outputs();
-			  set_data_bus(PAK_ID_BYTE);
-			}
-		      else
-			{
-			  // Read of pak memory
-			  TRACE0('R');
-			  TRACE0('D');
-			  TRACE0(pak_memory[PAK_ADDRESS]);
-			  TRACE0(PAK_ADDRESS & 0xff);
-			  TRACE0(PAK_ADDRESS >> 8);
-
-			  set_bus_outputs();
-			  set_data_bus(pak_memory[PAK_ADDRESS]);
-			}
-		    }
-	      
-		}
-	    }
-
-	  //----------------------------------------------------------------------
-
-
-	  //----------------------------------------------------------------------
-	  // SMR handling
-      
-	  if( (last_smr == 0) && (smr == 1) )
-	    {
-	      ss_address = 0;
-	    }
-
-#endif
-	  // If soe goes high then we have to make bus inputs
-	  // If ss is low as well then it's a write
-	  if( (last_soe == 0) && (soe == 1) )
-	    {
-	      int data;
-	  
-	      // High so don't drive the data bus, this is a write
-	      // Capture data on bus
-	      set_bus_inputs();
-
-	      // If ss is low, then this is a write as OE is attached to WR on RAMPAKs
-	      // CE is gated with SMR so that can stop the write
-	      if( (ss == 0) && (spgm == 0) )
-		{
-		  data = get_data_bus();
-
-		  if( smr == 1 )
-		    {
-		    }
-		  else
-		    {
-#if !READ_ONLY	      
-		      // write to ram
-		      //pak_memory[PAK_ADDRESS] = data;
-#endif
-		    }
-		}
-	    }
-
-	  // catch-all, force inputs
-	  if( soe )
-	    {
-	      set_bus_inputs();
-	    }
-      
-	  last_ss     = ss;
-	  last_sclk   = sclk;
-	  last_soe    = soe;
-	  last_smr    = smr;
-	  last_spgm   = spgm;
-      
-	}
-
-#if NO_INTERRUPTS_WHILE_POLLING 
-      // Re-enable interrupts
-      //irq_set_mask_enabled(0xf, true);
-#endif
-      
-      // leave the bus as inputs
-      //set_bus_inputs();
-
-      //DEBUG_STOP
 #if 1
       // Indicate we are now in menu
       oled_clear_display(&oled0);
@@ -4329,8 +4267,9 @@ int main()
 	}
 
     }
-#endif
 }
+  
+
 
 
 
