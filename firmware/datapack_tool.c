@@ -159,6 +159,7 @@ const int SLOT_SD6_PIN  = 6;
 const int SLOT_SD7_PIN  = 7;
 
 const int LS_DIR_PIN    = 13;
+const int VPP_ON_PIN    = 17;
 
 volatile int ss_count = 0;
 volatile int soe_state = 1;
@@ -3131,30 +3132,32 @@ void button_read(struct MENU_ELEMENT *e)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Blanks the pak memory which will enable it to be sized
-//
-// Probably need an 'Are you sure?'
+// Drives Vpp with square wave to test the switch circuit
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void button_blank(struct MENU_ELEMENT *e)
+void button_cycle_vpp(struct MENU_ELEMENT *e)
 {
-  char line[40];
-  
-  for(int k=0; k< 100; k++)
+
+  for(;;)
     {
-      pak_memory[k] = 0xff;
+      gpio_put(VPP_ON_PIN, 0);
+      //sleep_ms(500);
+      loop_delay(100000);
+      
+      gpio_put(VPP_ON_PIN, 1);
+      //      sleep_ms(500);
+      loop_delay(100000);
     }
-
-  oled_clear_display(&oled0);
-  oled_set_xy(&oled0, 0, 0);
-  sprintf(line, "Buffer Cleared");
-  oled_display_string(&oled0, line);
-
-  loop_delay(3000000);
-  
-  draw_menu(&oled0, current_menu, true);
 }
+
+
+const struct MENU_ELEMENT test_menu[] =
+  {
+   {BUTTON_ELEMENT, "Cycle Vpp",                  NULL,     button_cycle_vpp},
+   {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
+   {MENU_END,       "",                           NULL,     NULL},
+  };
 
 
 const struct MENU_ELEMENT home_menu[] =
@@ -3164,7 +3167,7 @@ const struct MENU_ELEMENT home_menu[] =
 #if 1
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
 #endif   
-   {BUTTON_ELEMENT, "Blank",                      NULL,     button_blank},
+   {SUB_MENU,       "Test",                       test_menu,     NULL},
 #if 1   
    {BUTTON_ELEMENT, "Read",                       NULL,     button_read},
 #endif
@@ -4106,6 +4109,9 @@ int main()
 
   printf("\nSetting GPIOs...");
   gpio_init(22);
+
+  gpio_init(VPP_ON_PIN);
+  gpio_set_dir(VPP_ON_PIN, GPIO_OUT);
   
   // Select the SD card
   gpio_put(22, 0);
