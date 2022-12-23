@@ -3584,8 +3584,21 @@ void ArdDataPinsToInput(void)
   
   for(i=0; i<8; i++)
     {
+      if (datapak_mode)
+	{
+	  // Pull ups
+	  gpio_set_pulls(data_pin[i], 1, 0);
+	}
+      else
+	{
+	  // No pull ups
+	  gpio_set_pulls(data_pin[i], 0, 0);
+	}
+      
       gpio_set_dir(data_pin[i], GPIO_IN);
     }
+
+  // 
 } 
 
 //------------------------------------------------------------------------------------------------------
@@ -3682,7 +3695,8 @@ void resetAddrCounter()
 //------------------------------------------------------------------------------------------------------
 
 void nextAddress()
-{ // toggles CLK to advance the address, CLK is LSB of address and triggers the counter
+{
+  // toggles CLK to advance the address, CLK is LSB of address and triggers the counter
   if (CLK_val == 0)
     {
       gpio_put(SLOT_SCLK_PIN, 1);
@@ -3693,8 +3707,11 @@ void nextAddress()
       gpio_put(SLOT_SCLK_PIN, 0);
       CLK_val = 0;
     }
+
   delayShort(); // settling time, let datapak catch up with address
+
   current_address++;
+
   if (paged_addr && ((current_address & 0xFF) == 0))
     {
       nextPage(); // if paged mode and low byte of addr is zero (end of page) - advance page counter
@@ -4590,19 +4607,26 @@ void serial_loop()
 	{
 	  // Debug test option
 	case '=':
+#if 1	  
 	  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
 	  packOutputAndSelect();         // Enable pack data bus output then select it
 	  resetAddrCounter();            // reset counters
 
-	  byte dat = readByte(); // read Datapak byte at current address
-
-	  for(int i=0; i<8; i++)
+	  for(int j=0; j<10; j++)
 	    {
-	      printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
+	      byte dat = readByte(); // read Datapak byte at current address
+	      nextAddress();
+	      
+	      for(int i=0; i<8; i++)
+		{
+		  printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
+		}
+	      
+	      printf("\nData byte:%02X\n", dat);
 	    }
-	  
-	  printf("\nData byte:%02X\n", dat);
 	  printf("\n");
+	      
+#endif
 	  break;
 	  
 	case 'e' : { // erase bytes
@@ -5148,7 +5172,7 @@ int main()
   gpio_set_dir(SLOT_SOE_PIN, GPIO_OUT);
   gpio_set_dir(SLOT_SPGM_PIN, GPIO_OUT);
 
-  // Drive data bus towards us
+    // Drive data bus towards us
   gpio_init(LS_DIR_PIN);
   gpio_put(LS_DIR_PIN, 0);
 
