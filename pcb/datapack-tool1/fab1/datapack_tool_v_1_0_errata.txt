@@ -4,5 +4,9 @@ Psion Organiser datapack Tool V1.0 errata
 1. Datapack connector is awkward
 2. 4k7 pull ups for I2C have wrong footprint
 3. Potentiometer needed in vpp supply
+4. 3608 dc-dc converter doesn't work and destroys the IC even
+   though a 3608 dc-dc module does work.
+5. Pin 19 of U2 should go to GND (schematic issue)
+
 
 

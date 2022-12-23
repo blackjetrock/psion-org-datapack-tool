@@ -35,7 +35,6 @@ typedef uint8_t byte;
 typedef uint16_t word;
 typedef int boolean;
 
-const byte data_pin[] = {0, 1, 2, 3, 4, 5, 6, 7}; // pins D0 to D7 on Datapak
 
 boolean paged_addr = true; // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
 boolean datapak_mode = true; // true for datapaks, false for rampaks, mode can be changed by command option
@@ -157,6 +156,30 @@ const int SLOT_SD4_PIN  = 4;
 const int SLOT_SD5_PIN  = 5;
 const int SLOT_SD6_PIN  = 6;
 const int SLOT_SD7_PIN  = 7;
+
+const byte data_pin[] =
+  {
+   SLOT_SD0_PIN,
+   SLOT_SD1_PIN,
+   SLOT_SD2_PIN,
+   SLOT_SD3_PIN,
+   SLOT_SD4_PIN,
+   SLOT_SD5_PIN,
+   SLOT_SD6_PIN,
+   SLOT_SD7_PIN
+  }; // pins D0 to D7 on Datapak
+
+const int data_gpio[8] =
+  {
+   SLOT_SD0_PIN,
+   SLOT_SD1_PIN,
+   SLOT_SD2_PIN,
+   SLOT_SD3_PIN,
+   SLOT_SD4_PIN,
+   SLOT_SD5_PIN,
+   SLOT_SD6_PIN,
+   SLOT_SD7_PIN,
+  };
 
 const int LS_DIR_PIN    = 13;
 const int VPP_ON_PIN    = 17;
@@ -3541,18 +3564,24 @@ void update_buttons()
 //------------------------------------------------------------------------------------------------------
 
 void delayShort() { // 1 us delay
-  sleep_us(1);
+  sleep_us(10);
 }
 
 //------------------------------------------------------------------------------------------------------
 
 void delayLong() { // 3 us delay
-  sleep_us(3);
+  sleep_us(30);
 }
+
+// Switch data lines to inputs
+// Also swap level shifters to match
 
 void ArdDataPinsToInput(void)
 {
   int i;
+
+  gpio_put(LS_DIR_PIN, 1);
+  
   for(i=0; i<8; i++)
     {
       gpio_set_dir(data_pin[i], GPIO_IN);
@@ -3564,7 +3593,7 @@ void ArdDataPinsToInput(void)
 void ArdDataPinsToOutput()
 {
   // set Arduino data pins to output
-  
+  gpio_put(LS_DIR_PIN, 0);
   for (byte i = 0; i <= 7; i += 1)
     {
       gpio_set_dir(data_pin[i], GPIO_OUT);
@@ -3578,9 +3607,10 @@ void ArdDataPinsToOutput()
 void packOutputAndSelect()
 {
   // sets pack data pins to output and selects pack memory chip (EPROM or RAM)
-  gpio_put(SLOT_SOE_PIN, 0); // enable output - pack ready for read
-  delayShort(); // delay whilst pack data pins go to output
-  gpio_put(SLOT_SS_PIN, 0); // take memory chip CE_N low - select pack
+  gpio_put(SLOT_SOE_PIN, 0);        // enable output - pack ready for read
+  delayShort();                     // delay whilst pack data pins go to output
+  
+  gpio_put(SLOT_SS_PIN, 0);         // take memory chip CE_N low - select pack
   delayShort();
   delayShort();
 }
@@ -3611,6 +3641,7 @@ byte readByte()
       
       data = (data << 1) + gpio_get(data_pin[i]); 
     }
+  
   return data;
 }
 
@@ -3635,11 +3666,15 @@ void resetAddrCounter()
 
   gpio_put(SLOT_SCLK_PIN, 0);          // start with clock low, CLK is LSB of address
   delayShort();
+  
   CLK_val = 0;                         // set CLK state low
+
   gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
   delayShort();
+
   gpio_put(SLOT_SMR_PIN, 0);
   delayShort();
+
   //delayLong();
   current_address = 0;
 }
@@ -3878,7 +3913,7 @@ word readAll(byte output)
 {
   word endAddr = read_dir(); // size pack - max is 64k
 
-  printf("Size: %08X", endAddr);
+  printf("\nSize: %08X", endAddr);
 
   ArdDataPinsToInput();          // ensure Arduino data pins are set to input
   packOutputAndSelect();         // Enable pack data bus output then select it
@@ -3906,7 +3941,7 @@ word readAll(byte output)
 	{
 	  // print to serial
 	  byte addr_low = addr_tot & 0xFF;
-	  printf("(Ard) %04x: %02x", addr_low, dat); 
+	  printf("\n(Ard) %04x: %02x", addr_low, dat); 
 	}
 
 #if 0
@@ -3928,9 +3963,8 @@ word readAll(byte output)
 		}
 	    }                                          // end of while loop delay for data echo back from PC
 
-#if 0
 	  byte datr = Serial.read(); // read byte value from serial
-#endif
+
 	  if (datr != dat)
 	    {
 	      // if echo datr doesn't match dat sent
@@ -3953,7 +3987,7 @@ word readAll(byte output)
 	  quit = true;                 // quit if reach packSize and readFixedsize is true
 	}
       
-    if (addr_tot >= 0xFFFF)
+    if (addr_tot >= 0xFF)
       {
 	quit = true; // break loop if reach max size: (65536-1 bytes) 64k !!
       }
@@ -4320,9 +4354,12 @@ void WriteMainRec(bool output)
 // pack sizing and id bytes - code originally from Matt Callow, but modified. https://github.com/mattcallow/psion_pak_reader
 //------------------------------------------------------------------------------------------------------
 
-byte read_next_byte() { // only used by Matt's code
+byte read_next_byte()
+{
+  // only used by Matt's code
   nextAddress();
   byte data = readByte();
+
   return data;
 }
 
@@ -4371,32 +4408,22 @@ word read_dir(void)
 
   uint8_t id = 0; // datafile id
 
-  printf("");
+  printf("\n");
 
-  printf("ADDR   TYPE         NAME      ID    Del? SIZE");
+  printf("\nADDR   TYPE         NAME      ID    Del? SIZE");
 
   incr_addr(9); // move past header to 10th byte
 
   while(current_address < max_eprom_size)
     {
-      
-#if 0
-      printf("0x");
-      // print address (6 chars + space)
-      if (current_address+1<  0x10) printf("0");
-      if (current_address+1< 0x100) printf("0");
-      if (current_address+1<0x1000) printf("0");
-      printf(" ");
-#endif
-      
-      printf("0x%06X ", current_address+1);
+      printf("\n0x%06X ", current_address+1);
 	    
       char short_record[10] = "         ";    // 9 spaces + terminator
       uint8_t rec_len = read_next_byte();
       
       if (rec_len == 0xff)
 	{
-	  printf("End of pack");
+	  printf("\nEnd of pack");
 	  break;
 	}
       
@@ -4560,7 +4587,24 @@ void serial_loop()
       //printf(buf);
       
       switch (key)
-	{    
+	{
+	  // Debug test option
+	case '=':
+	  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
+	  packOutputAndSelect();         // Enable pack data bus output then select it
+	  resetAddrCounter();            // reset counters
+
+	  byte dat = readByte(); // read Datapak byte at current address
+
+	  for(int i=0; i<8; i++)
+	    {
+	      printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
+	    }
+	  
+	  printf("\nData byte:%02X\n", dat);
+	  printf("\n");
+	  break;
+	  
 	case 'e' : { // erase bytes
 	  if (!datapak_mode)
 	    {
@@ -4627,11 +4671,11 @@ void serial_loop()
 	    // read pack and send to PC
 	  
 	    // 0 - no output, 1 - print data, 2 - dump data to serial
-	    word endAddr = readAll(2); 
+	    word endAddr = readAll(1); 
 	    char buf[30];
-	    
-	    sprintf(buf, "(Ard) Size of pack is: 0x%04x bytes", endAddr); // end address is same as size as address starts from 0, size starts from 1
-	    printf(buf);
+
+	    // end address is same as size as address starts from 0, size starts from 1
+	    printf("\n(Ard) Size of pack is: 0x%04x bytes\n", endAddr); 
 	    break;
 	  }
 	  
@@ -4705,9 +4749,11 @@ void serial_loop()
 	    blank_check();
 	    break;
 	  }
-	  
+
+	case 'h':
 	case '?':
-	  {// add test record to main
+	  {
+	    // add test record to main
 	    printCommands();
 	    break;
 	  }
@@ -4748,18 +4794,6 @@ void serial_loop()
 ////////////////////////////////////////////////////////////////////////////////
 
 // read the value on the data bus
-
-const int data_gpio[8] =
-  {
-   SLOT_SD0_PIN,
-   SLOT_SD1_PIN,
-   SLOT_SD2_PIN,
-   SLOT_SD3_PIN,
-   SLOT_SD4_PIN,
-   SLOT_SD5_PIN,
-   SLOT_SD6_PIN,
-   SLOT_SD7_PIN,
-  };
 
 BYTE get_data_bus(void)
 {
@@ -5055,12 +5089,22 @@ void handle_address(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+// Main Loop
 //
+// Two itmes are serviced here, the menu for the OLED and the serial USB
+// interface
+//
+////////////////////////////////////////////////////////////////////////////////
+
 
 int main()
 {
-  //DEBUG_STOP;
   char line[80];
+
+  // Turn VPP off immediately
+  gpio_init(VPP_ON_PIN);
+  gpio_put(VPP_ON_PIN, 0);
+  gpio_set_dir(VPP_ON_PIN, GPIO_OUT);
 
   // Set up default file name, default is angling pak
   strcpy(current_file, "angler.opk");
@@ -5073,32 +5117,14 @@ int main()
 #endif
 
   stdio_init_all();
+  sleep_ms(2000);
 
-  printf("\nPAK gadget\n");
-  
-#if TEST_STDIO
-  {
-    int count;
-    while (true)
-      {
-	count++;
-      
-	if( (count % 1000000) == 0 )
-	  {
-	    sprintf(line, "\nRP2040: %d", count);
-	    printf(line);
-	  }
-      }
-  }
-#endif
-
+  printf("\nInitialising...");
+  printf("\n");
   printf("\nSetting GPIOs...");
-  gpio_init(22);
-
-  gpio_init(VPP_ON_PIN);
-  gpio_set_dir(VPP_ON_PIN, GPIO_OUT);
   
   // Select the SD card
+  gpio_init(22);
   gpio_put(22, 0);
   gpio_set_dir(22, GPIO_OUT);
   gpio_put(22, 0);
@@ -5113,6 +5139,7 @@ int main()
   for(int i=0; i<8; i++)
     {
       gpio_init(data_gpio[i]);
+      gpio_set_dir(data_gpio[i], GPIO_IN);
     }
   
   gpio_set_dir(SLOT_SS_PIN, GPIO_OUT);
@@ -5137,7 +5164,7 @@ int main()
   gpio_set_irq_enabled_with_callback(SLOT_SPGM_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
 #endif
 
-  printf("\nInitialising Sd card driver...");
+  printf("\nInitialising SD card driver...");
   
   // Initialise SD card driver
   sd_init_driver();
@@ -5190,12 +5217,11 @@ int main()
   // That will tell us which file to load
   process_config_file(&oled0);
 
-
   // datapack tool main loop
 
   while(1)
     {
-      printf("\nPsion Organiser Datapack Tool\n");
+
       stdio_flush();
 
       // Overall loop, which contains the polling loop and the menu loop
@@ -5229,13 +5255,15 @@ int main()
       if( sd_ok_flag )
 	{
 	  oled_display_string(&oled0, "SD card OK");
+	  printf("\nSD card OK");
 	}
       else
 	{
 	  oled_display_string(&oled0, "SD card NOT OK");
+	  printf("\nSD card NOT OK");
 	}
 
-      sleep_ms(3000);
+      sleep_ms(1000);
       
 #if 1
       // Indicate we are now in menu
@@ -5246,6 +5274,8 @@ int main()
       
       draw_menu(&oled0, current_menu, true);
 
+      printf("\n\nPsion Organiser Datapack Tool\n\n");
+	    
       // Menu loop
       menuloop_done = 0;
       
