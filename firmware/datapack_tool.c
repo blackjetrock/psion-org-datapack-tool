@@ -157,7 +157,7 @@ const int SLOT_SD5_PIN  = 5;
 const int SLOT_SD6_PIN  = 6;
 const int SLOT_SD7_PIN  = 7;
 
-const byte data_pin[] =
+const byte data_pin[8] =
   {
    SLOT_SD0_PIN,
    SLOT_SD1_PIN,
@@ -3580,7 +3580,7 @@ void ArdDataPinsToInput(void)
 {
   int i;
 
-  gpio_put(LS_DIR_PIN, 1);
+  gpio_put(LS_DIR_PIN, 0);
   
   for(i=0; i<8; i++)
     {
@@ -3593,7 +3593,7 @@ void ArdDataPinsToInput(void)
 void ArdDataPinsToOutput()
 {
   // set Arduino data pins to output
-  gpio_put(LS_DIR_PIN, 0);
+  gpio_put(LS_DIR_PIN, 1);
   for (byte i = 0; i <= 7; i += 1)
     {
       gpio_set_dir(data_pin[i], GPIO_OUT);
@@ -4800,7 +4800,7 @@ BYTE get_data_bus(void)
   int data = 0;
 
   // As we are reading the bus, the direction line should be high
-  gpio_put(LS_DIR_PIN, 1);
+  gpio_put(LS_DIR_PIN, 0);
   
 #if DIRECT_GPIO
   // Direct register access, as it's faster
@@ -4828,7 +4828,7 @@ void set_bus_outputs(void)
 {
   // Drive level shifters to be driving Psion
 
-  gpio_put(LS_DIR_PIN, 0);
+  gpio_put(LS_DIR_PIN, 1);
 
 #if DIRECT_GPIO
 #if 0
@@ -4871,7 +4871,7 @@ void set_bus_inputs(void)
 #endif
   // Drive level shifters to be driving Pico
   
-  gpio_put(LS_DIR_PIN, 1);
+  gpio_put(LS_DIR_PIN, 0);
 
 }
 
@@ -5150,7 +5150,7 @@ int main()
 
   // Drive data bus towards us
   gpio_init(LS_DIR_PIN);
-  gpio_put(LS_DIR_PIN, 1);
+  gpio_put(LS_DIR_PIN, 0);
 
   // LS_DIR is an output
   gpio_set_dir(LS_DIR_PIN, GPIO_OUT);

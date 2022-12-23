@@ -7,6 +7,7 @@ Psion Organiser datapack Tool V1.0 errata
 4. 3608 dc-dc converter doesn't work and destroys the IC even
    though a 3608 dc-dc module does work.
 5. Pin 19 of U2 should go to GND (schematic issue)
-
+6. Data direction of U3 is wrong. Should be high as we want Pico to
+   drive the signals to the slot.
 
 
