@@ -36,22 +36,22 @@ typedef uint16_t word;
 typedef int boolean;
 
 
-boolean paged_addr = true; // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
-boolean datapak_mode = true; // true for datapaks, false for rampaks, mode can be changed by command option
-boolean program_low = false; // will be set true when SLOT_SPGM_PIN is low during datapak write, so page counter can be pulsed accordingly
-const boolean force_write_cycles = false; // set true to perform max write cycles, without break for confirmed write
-const boolean overwrite = false; // set true to add a longer overwite after confirmed write
-const byte max_datapak_write_cycles = 5; // max. no. of write cycle attempts before failure
-const byte datapak_write_pulse = 100; // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
-word current_address = 0;
-#define max_eprom_size 0x8000 // max eprom size - 32k - only used by Matt's code
+boolean paged_addr                  = false;    // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
+boolean datapak_mode                = true;     // true for datapaks, false for rampaks, mode can be changed by command option
+boolean program_low                 = false;    // will be set true when SLOT_SPGM_PIN is low during datapak write, so page counter can be pulsed accordingly
+const boolean force_write_cycles    = false;    // set true to perform max write cycles, without break for confirmed write
+const boolean overwrite             = false;    // set true to add a longer overwite after confirmed write
+const byte max_datapak_write_cycles = 5;        // max. no. of write cycle attempts before failure
+const byte datapak_write_pulse      = 100;      // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
+word current_address                = 0;
+#define max_eprom_size              0x8000      // max eprom size - 32k - only used by Matt's code
 
-boolean read_fixed_size = false; // true for fixed size
-//boolean read_fixed_size = true; // true for fixed size
-word read_pack_size = 0x7e9b; // set a fixed pack size for read
-//word read_pack_size = 0x0100; 
+boolean read_fixed_size             = false;    // true for fixed size
+//boolean read_fixed_size           = true;     // true for fixed size
+word read_pack_size                 = 0x7e9b;   // set a fixed pack size for read
+//word read_pack_size               = 0x0100; 
 
-byte CLK_val = 0; // flag to indicate CLK state
+byte CLK_val                        = 0;        // flag to indicate CLK state
 
 
 // Use this if breakpoints don't work
@@ -84,7 +84,7 @@ byte CLK_val = 0; // flag to indicate CLK state
 #define SUPPORT_ID_BYTE        1
 #define PAK_ID_BYTE         0x01
 #define READ_ONLY              0
-#define INIT_PAK_MEMORY        1
+#define INIT_PAK_MEMORY        0
 #define FF_FIRST_BYTES         0
 
 // Direct access to GPIO registers is faster, and we need speed
@@ -3721,16 +3721,19 @@ void nextAddress()
 //------------------------------------------------------------------------------------------------------
 
 void nextPage()
-{ // pulses PGM low, -ve edge advance page counter
+{
+  // pulses PGM low, -ve edge advance page counter
   if (program_low)
-    { // if SLOT_SPGM_PIN low, pulse high then low
+    {
+      // if SLOT_SPGM_PIN low, pulse high then low
       gpio_put(SLOT_SPGM_PIN, 1);
       delayShort();
       gpio_put(SLOT_SPGM_PIN, 0);
       delayShort();
     }
   else
-    { // if SLOT_SPGM_PIN high, pulse low then high
+    {
+      // if SLOT_SPGM_PIN high, pulse low then high
       gpio_put(SLOT_SPGM_PIN, 0); // -ve edge advances counter
       delayShort();
       gpio_put(SLOT_SPGM_PIN, 1);
@@ -4592,6 +4595,33 @@ bool blank_check()
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+void wait_serial_key(void)
+{
+  int ch;
+  do
+    {
+      ch = getchar_timeout_us(100);
+    }
+  while (ch == PICO_ERROR_TIMEOUT);
+}
+
+void take_high(int gpio, char *gpio_name)
+{
+#if 0
+  gpio_init(gpio);
+  gpio_set_dir(gpio, GPIO_OUT);
+#endif
+  
+  printf("\nGPIO %s high (%d)", gpio_name, gpio);
+  gpio_put(gpio, 1);
+
+  // Wait for key
+  wait_serial_key();
+
+  printf("\nGPIO %s low\n", gpio_name);
+  gpio_put(gpio, 0);
+}
+
 
 void serial_loop()
 {
@@ -4605,6 +4635,46 @@ void serial_loop()
       
       switch (key)
 	{
+	case '-':
+#if 1	  
+	  ArdDataPinsToOutput();
+#endif
+	  gpio_set_dir(SLOT_SD0_PIN, GPIO_OUT);
+#if 0
+	  gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
+	  gpio_put(LS_DIR_PIN, 1);
+#endif	  
+
+	  gpio_put(SLOT_SS_PIN, 0);
+	  gpio_put(SLOT_SOE_PIN, 0);
+	  gpio_put(SLOT_SPGM_PIN, 0);
+	  gpio_put(SLOT_SMR_PIN, 0);
+	  gpio_put(SLOT_SCLK_PIN, 0);
+	  gpio_put(SLOT_SD0_PIN, 0);
+	  gpio_put(SLOT_SD1_PIN, 0);
+	  gpio_put(SLOT_SD2_PIN, 0);
+	  gpio_put(SLOT_SD3_PIN, 0);
+	  gpio_put(SLOT_SD4_PIN, 0);
+	  gpio_put(SLOT_SD5_PIN, 0);
+	  gpio_put(SLOT_SD6_PIN, 0);
+	  gpio_put(SLOT_SD7_PIN, 0);
+	  
+	  take_high(SLOT_SS_PIN, "SS");
+	  take_high(SLOT_SOE_PIN, "SOE");
+	  take_high(SLOT_SMR_PIN, "SMR");
+	  take_high(SLOT_SPGM_PIN, "SPGM");
+	  take_high(SLOT_SCLK_PIN, "SCLK");
+	  take_high(SLOT_SD0_PIN, "SD0");
+	  take_high(SLOT_SD1_PIN, "SD1");
+	  take_high(SLOT_SD2_PIN, "SD2");
+	  take_high(SLOT_SD3_PIN, "SD3");
+	  take_high(SLOT_SD4_PIN, "SD4");
+	  take_high(SLOT_SD5_PIN, "SD5");
+	  take_high(SLOT_SD6_PIN, "SD6");
+	  take_high(SLOT_SD7_PIN, "SD7");
+	  ArdDataPinsToInput();
+	  break;
+	  
 	  // Debug test option
 	case '=':
 #if 1	  
@@ -4612,20 +4682,40 @@ void serial_loop()
 	  packOutputAndSelect();         // Enable pack data bus output then select it
 	  resetAddrCounter();            // reset counters
 
+	  gpio_put(VPP_ON_PIN, 1);
+	    
+	  gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
+	  sleep_ms(100);
+	  
+	  gpio_put(SLOT_SMR_PIN, 0);
+
+	  sleep_ms(100);
+	  gpio_put(SLOT_SOE_PIN, 0);
+	  gpio_put(SLOT_SPGM_PIN, 1);
+	  gpio_put(SLOT_SS_PIN, 0);
+	  delayShort();
+	  
 	  for(int j=0; j<10; j++)
 	    {
-	      byte dat = readByte(); // read Datapak byte at current address
+	      //byte dat = readByte(); // read Datapak byte at current address
+#if 0
 	      nextAddress();
-	      
+#else
+		  gpio_put(SLOT_SCLK_PIN, 1);
+		  gpio_put(SLOT_SCLK_PIN, 0);
+
+#endif
+
 	      for(int i=0; i<8; i++)
 		{
 		  printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
 		}
 	      
-	      printf("\nData byte:%02X\n", dat);
+	      //printf("\nData byte:%02X\n", dat);
 	    }
 	  printf("\n");
-	      
+
+
 #endif
 	  break;
 	  
@@ -4829,7 +4919,7 @@ BYTE get_data_bus(void)
 #if DIRECT_GPIO
   // Direct register access, as it's faster
   data = sio_hw->gpio_in;
-  data >>= 8;
+  data >>= 0;
   data &= 0xff;
   
 #else
@@ -4850,15 +4940,16 @@ BYTE get_data_bus(void)
 // Set the data bus to point to the Psion, i.e. outputs from us
 void set_bus_outputs(void)
 {
+  return;
   // Drive level shifters to be driving Psion
 
   gpio_put(LS_DIR_PIN, 1);
 
 #if DIRECT_GPIO
 #if 0
-  sio_hw->gpio_oe |= 0x0000FF00;
+  sio_hw->gpio_oe |= 0x000000FF;
 #else
-  sio_hw->gpio_oe_set = 0x0000FF00;
+  sio_hw->gpio_oe_set = 0x000000FF;
 #endif
 #else
   int i;
@@ -4874,16 +4965,16 @@ void set_bus_outputs(void)
 // Set data bus to drive us
 void set_bus_inputs(void)
 {
-
+  return;
 #if DIRECT_GPIO
   
   // Direct register access to make things faster
 
   // Get current output states
 #if 0
-  sio_hw->gpio_oe &= 0xffff00ff;
+  sio_hw->gpio_oe &= 0xffffff00;
 #else
-  sio_hw->gpio_oe_clr = 0x0000FF00;
+  sio_hw->gpio_oe_clr = 0x000000FF;
 #endif
 #else
   int i;
@@ -4903,6 +4994,7 @@ void set_bus_inputs(void)
 
 void set_data_bus(BYTE data)
 {
+  return;
 #if DIRECT_GPIO
   int states;
   int dat = data & 0xff;
@@ -4914,11 +5006,11 @@ void set_data_bus(BYTE data)
   states = sio_hw->gpio_out;
 
   // Our data has its LSB at GPIO8
-  states &= 0xFFFF00FF;
-  sio_hw->gpio_out = states | (dat <<8);
+  states &= 0xFFFFFF00;
+  sio_hw->gpio_out = states | (dat <<0);
 #else
-  sio_hw->gpio_set = (  dat  << 8);
-  sio_hw->gpio_clr = ((dat ^ 0xFF) << 8);
+  sio_hw->gpio_set = (  dat  << 0);
+  sio_hw->gpio_clr = ((dat ^ 0xFF) << 0);
     
 #endif
   
@@ -5127,7 +5219,7 @@ int main()
 
   // Turn VPP off immediately
   gpio_init(VPP_ON_PIN);
-  gpio_put(VPP_ON_PIN, 0);
+  gpio_put(VPP_ON_PIN, 1);
   gpio_set_dir(VPP_ON_PIN, GPIO_OUT);
 
   // Set up default file name, default is angling pak
@@ -5178,9 +5270,8 @@ int main()
 
   // LS_DIR is an output
   gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
-  set_bus_inputs();
 
-#if USE_INTERRUPTS
+#if 0
   gpio_set_irq_enabled_with_callback(SLOT_SS_PIN,   GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
   gpio_set_irq_enabled_with_callback(SLOT_SCLK_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
   gpio_set_irq_enabled_with_callback(SLOT_SMR_PIN,  GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
@@ -5189,10 +5280,15 @@ int main()
 #endif
 
   printf("\nInitialising SD card driver...");
+
+#define SD_CARD 1
   
+#if SD_CARD  
   // Initialise SD card driver
   sd_init_driver();
+#endif
 
+#if 1
   printf("\nSetting up buttons...");
   
   // Set up button gpios
@@ -5206,20 +5302,13 @@ int main()
       gpio_set_pulls(but_pins[i], 1, 0);
 #endif
     }
-
-#if 0  
-  // SW3 is special for now
-  gpio_init(SW3_PIN);
-  gpio_set_dir(SW3_PIN, GPIO_IN);
-  
-#if PICOPAK      
-  // Set pull ups for buttons
-  gpio_set_pulls(SW3_PIN, 1, 0);
-#endif
 #endif
   
   printf("\nSetting up OLED...");
-    
+
+#define OLED_ON 1
+  
+#if OLED_ON  
   // Set up OLED display
   i2c_init(&i2c_bus_0);
     
@@ -5234,20 +5323,23 @@ int main()
   to_home_menu(NULL);
 
   init_buttons();
-
+#endif
+  
   int count = 0;
 
+#if SD_CARD  
   // Read config file into memory buffer
   // That will tell us which file to load
   process_config_file(&oled0);
-
+#endif
+  
   // datapack tool main loop
 
   while(1)
     {
 
       stdio_flush();
-
+#if OLED_ON
       // Overall loop, which contains the polling loop and the menu loop
       oled_clear_display(&oled0);
       
@@ -5258,19 +5350,13 @@ int main()
       oled_set_xy(&oled0, 0,14);
       oled_display_string(&oled0, "Interrupts");
 #endif
-
       
-#if 0      
-#if USE_POLLING
-      oled_set_xy(&oled0, 0,14);
-      oled_display_string(&oled0, "Polling");
-#endif
-#endif
-
       sprintf(line, "%s", current_file);
       oled_set_xy(&oled0, 0, 14);
       oled_display_string(&oled0, line);
+#endif
       
+#if SD_CARD      
       // Mount and unmount the SD card to set the sd_ok_flag up
       mount_sd();
       unmount_sd();
@@ -5288,6 +5374,7 @@ int main()
 	}
 
       sleep_ms(1000);
+#endif
       
 #if 1
       // Indicate we are now in menu
@@ -5295,20 +5382,50 @@ int main()
       oled_set_xy(&oled0, 0,0);
       oled_display_string(&oled0, "Datapak Gadget Menu");
 #endif
-      
-      draw_menu(&oled0, current_menu, true);
 
+#if OLED_ON
+      draw_menu(&oled0, current_menu, true);
+#endif
+      
       printf("\n\nPsion Organiser Datapack Tool\n\n");
-	    
+      
+      // Set up directions for the control lines
+      gpio_init(SLOT_SS_PIN);
+      gpio_init(SLOT_SCLK_PIN);
+      gpio_init(SLOT_SMR_PIN);
+      gpio_init(SLOT_SOE_PIN);
+      gpio_init(SLOT_SPGM_PIN);
+      
+      for(int i=0; i<8; i++)
+	{
+	  gpio_init(data_gpio[i]);
+	  gpio_set_dir(data_gpio[i], GPIO_IN);
+	}
+      
+      gpio_set_dir(SLOT_SS_PIN, GPIO_OUT);
+      gpio_set_dir(SLOT_SCLK_PIN, GPIO_OUT);
+      gpio_set_dir(SLOT_SMR_PIN, GPIO_OUT);
+      gpio_set_dir(SLOT_SOE_PIN, GPIO_OUT);
+      gpio_set_dir(SLOT_SPGM_PIN, GPIO_OUT);
+
+      // Drive data bus towards us
+      gpio_init(LS_DIR_PIN);
+      gpio_put(LS_DIR_PIN, 0);
+      
+      // LS_DIR is an output
+      gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
+      set_bus_inputs();
+      
       // Menu loop
       menuloop_done = 0;
       
       while(!menuloop_done)
 	{
-
+#if OLED_ON
 	  // Run menu
 	  update_buttons();
-
+#endif
+	  
 	  // Run serial interface
 	  serial_loop();
 	}
