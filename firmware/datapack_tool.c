@@ -36,7 +36,7 @@ typedef uint16_t word;
 typedef int boolean;
 
 
-boolean paged_addr                  = false;    // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
+boolean paged_addr                  = true;     // true for paged addressing, false for linear addressing - note linear addressing is untested!! - paged is default
 boolean datapak_mode                = true;     // true for datapaks, false for rampaks, mode can be changed by command option
 boolean program_low                 = false;    // will be set true when SLOT_SPGM_PIN is low during datapak write, so page counter can be pulsed accordingly
 const boolean force_write_cycles    = false;    // set true to perform max write cycles, without break for confirmed write
@@ -2421,59 +2421,85 @@ void run_help() {
   }
 }
 
-void process_stdio(int cRxedChar) {
+void process_stdio(int cRxedChar)
+{
   char cmd[256];
   size_t ix;
-
-  if (!isprint(cRxedChar) && !isspace(cRxedChar) && '\r' != cRxedChar &&
-      '\b' != cRxedChar && cRxedChar != (char)127)
+  
+  if(  !isprint(cRxedChar) &&
+       !isspace(cRxedChar) &&
+       '\r' != cRxedChar   &&
+       '\b' != cRxedChar    &&
+       cRxedChar != (char)127)
+    {
     return;
+    }
+  
   printf("%c", cRxedChar);  // echo
   stdio_flush();
-  if (cRxedChar == '\r') {
-    /* Just to space the output from the input. */
-    printf("%c", '\n');
-    stdio_flush();
 
-    if (!strnlen(cmd, sizeof cmd)) {  // Empty input
-      printf("> ");
+  if (cRxedChar == '\r')
+    {
+      /* Just to space the output from the input. */
+      printf("%c", '\n');
       stdio_flush();
-      return;
-    }
-    /* Process the input string received prior to the newline. */
-    char *cmdn = strtok(cmd, " ");
-    if (cmdn) {
-      size_t i;
-      for (i = 0; i < count_of(cmds); ++i) {
-	if (0 == strcmp(cmds[i].command, cmdn)) {
-	  (*cmds[i].function)();
-	  break;
+      
+      if (!strnlen(cmd, sizeof cmd))
+	{  // Empty input
+	  printf("> ");
+	  stdio_flush();
+	  return;
 	}
-      }
-      if (count_of(cmds) == i) printf("Command \"%s\" not found\n", cmdn);
+      
+      /* Process the input string received prior to the newline. */
+      char *cmdn = strtok(cmd, " ");
+      
+      if (cmdn)
+	{
+	  size_t i;
+	  for (i = 0; i < count_of(cmds); ++i)
+	    {
+	      if (0 == strcmp(cmds[i].command, cmdn))
+		{
+		  (*cmds[i].function)();
+		  break;
+		}
+	    }
+	  if (count_of(cmds) == i)
+	    {
+	      printf("Command \"%s\" not found\n", cmdn);
+	    }
+	}
+      
+      ix = 0;
+      memset(cmd, 0, sizeof cmd);
+      printf("\n> ");
+      stdio_flush();
     }
-    ix = 0;
-    memset(cmd, 0, sizeof cmd);
-    printf("\n> ");
-    stdio_flush();
-  } else {  // Not newline
-    if (cRxedChar == '\b' || cRxedChar == (char)127) {
-      /* Backspace was pressed.  Erase the last character
-	 in the string - if any. */
-      if (ix > 0) {
-	ix--;
-	cmd[ix] = '\0';
-      }
-    } else {
-      /* A character was entered.  Add it to the string
-	 entered so far.  When a \n is entered the complete
-	 string will be passed to the command interpreter. */
-      if (ix < sizeof cmd - 1) {
-	cmd[ix] = cRxedChar;
-	ix++;
-      }
+  else
+    {  // Not newline
+      if (cRxedChar == '\b' || cRxedChar == (char)127)
+	{
+	  /* Backspace was pressed.  Erase the last character
+	     in the string - if any. */
+	  if (ix > 0)
+	    {
+	      ix--;
+	      cmd[ix] = '\0';
+	    }
+	}
+      else
+	{
+	  /* A character was entered.  Add it to the string
+	     entered so far.  When a \n is entered the complete
+	     string will be passed to the command interpreter. */
+	  if (ix < sizeof cmd - 1)
+	    {
+	      cmd[ix] = cRxedChar;
+	      ix++;
+	    }
+	}
     }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4402,21 +4428,21 @@ void print_pak_id()
   byte pack_size = sz * 8;
 
   packDeselectAndInput();            // deselect pack, then set pack data bus to input
-  printf("");
+  printf("\n");
   printf("Id Flags: %02X", id);
   
   // print bit flag value using conditional operator: (condition) ? true : false
 
-  printf("0: ");    printf((id & 0x01)? "invalid"             : "valid"); 
-  printf("1: ");    printf((id & 0x02)? "datapak"             : "rampak");
-  printf("2: ");    printf((id & 0x04)? "paged"               : "linear");
-  printf("3: ");    printf((id & 0x08)? "not write protected" : "write protected");
-  printf("4: ");    printf((id & 0x10)? "non-bootable"        : "bootable");
-  printf("5: ");    printf((id & 0x20)? "copyable"            : "copy protected");
-  printf("6: ");    printf((id & 0x40)? "standard"            : "flashpak or debug RAM pak");
-  printf("7: ");    printf((id & 0x80)? "MK1"                 : "MK2");
+  printf("\n0: ");    printf((id & 0x01)? "invalid"             : "valid"); 
+  printf("\n1: ");    printf((id & 0x02)? "datapak"             : "rampak");
+  printf("\n2: ");    printf((id & 0x04)? "paged"               : "linear");
+  printf("\n3: ");    printf((id & 0x08)? "not write protected" : "write protected");
+  printf("\n4: ");    printf((id & 0x10)? "non-bootable"        : "bootable");
+  printf("\n5: ");    printf((id & 0x20)? "copyable"            : "copy protected");
+  printf("\n6: ");    printf((id & 0x40)? "standard"            : "flashpak or debug RAM pak");
+  printf("\n7: ");    printf((id & 0x80)? "MK1"                 : "MK2");
 
-  printf("Size: "); printf(pack_size); printf(" kB");
+  printf("\nSize: "); printf(pack_size); printf(" kB");
 }
 
 word read_dir(void)
@@ -4425,19 +4451,19 @@ word read_dir(void)
   ArdDataPinsToInput(); // ensure Arduino data pins are set to input
   packOutputAndSelect(); // Enable pack data bus output, then select it
   resetAddrCounter();
-
+  
   uint8_t id = 0; // datafile id
-
+  
   printf("\n");
-
-  printf("\nADDR   TYPE         NAME      ID    Del? SIZE");
-
+  
+  printf("\nADDR     TYPE           NAME        ID        Del? SIZE");
+  
   incr_addr(9); // move past header to 10th byte
-
+  
   while(current_address < max_eprom_size)
     {
       printf("\n0x%06X ", current_address+1);
-	    
+      
       char short_record[10] = "         ";    // 9 spaces + terminator
       uint8_t rec_len = read_next_byte();
       
@@ -4450,11 +4476,11 @@ word read_dir(void)
       uint16_t jump = rec_len; // for jump, reduces when bytes read
       uint16_t rec_size = rec_len; // for printing
       uint8_t rec_type = read_next_byte();
-
+      
       if (rec_type == 0x80)
 	{
 	  jump = (read_next_byte()<<8) + read_next_byte();
-
+	  
 	  printf("Long record, length = 0x08X", jump);
 	} 
       else
@@ -4487,6 +4513,7 @@ word read_dir(void)
 	      break;
 	    case 0x04:
 	      printf(" [Comms] ");
+	      
 	      break;
 	    case 0x05:
 	      printf(" [Sheet] ");
@@ -4503,8 +4530,16 @@ word read_dir(void)
 	    default:
 	      printf(" [misc]  ");// unknown type
 	    }
+
+	  for(int i=0; i<strlen(short_record); i++)
+	    {
+	      if( short_record[i] == 9 )
+		{
+		  short_record[i] = ' ';
+		}
+	    }
 	  
-          printf(short_record);
+          printf("%-10s", short_record);
 
 	  // isn't 1 <= 7?
 	  
@@ -4513,31 +4548,15 @@ word read_dir(void)
 	    {
 	      // filename, with id in last byte
 	      id = short_record[8];
-	      
 	      printf("  0x%06X ", id); // id (6 chars + 1 space)
-
-#if 0	      
-	      if (id<0x10) printf("0"); // pad with zero, if required
-	      printf(id, HEX); // print value in hex
-	      printf(" ");
-#endif
 	    }
           else
 	    {
-	      printf("      "); // record - (5 chars + 1 space) - one less char than filename
+	      printf("           ");
 	    }
 	  
-          printf("%s", (rec_type < 0x80) ? " Yes  " : " No   "); // deleted y/n? (6 chars)
-
-	  
+          printf(" %-3s  ", (rec_type < 0x80) ? "Yes" : "No"); // deleted y/n? (6 chars)
           printf("0x%06X ", rec_size); // length (6 chars)
-#if 0
-          if (rec_size<0x10) printf("0"); // pad with zero, if required
-          if (rec_size<0x100) printf("0"); // pad with zero, if required
-          if (rec_size<0x1000) printf("0"); // pad with zero, if required
-          printfln(rec_size, HEX);
-          //printfln();
-#endif	  
 	}
       
       incr_addr(jump);
@@ -4682,7 +4701,7 @@ void serial_loop()
 	  packOutputAndSelect();         // Enable pack data bus output then select it
 	  resetAddrCounter();            // reset counters
 
-	  gpio_put(VPP_ON_PIN, 1);
+	  gpio_put(VPP_ON_PIN, 0);
 	    
 	  gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
 	  sleep_ms(100);
@@ -5219,7 +5238,7 @@ int main()
 
   // Turn VPP off immediately
   gpio_init(VPP_ON_PIN);
-  gpio_put(VPP_ON_PIN, 1);
+  gpio_put(VPP_ON_PIN, 0);
   gpio_set_dir(VPP_ON_PIN, GPIO_OUT);
 
   // Set up default file name, default is angling pak
@@ -5235,8 +5254,8 @@ int main()
   stdio_init_all();
   sleep_ms(2000);
 
+  printf("\n\nPsion Organiser Datapack Tool\n\n");
   printf("\nInitialising...");
-  printf("\n");
   printf("\nSetting GPIOs...");
   
   // Select the SD card
@@ -5387,37 +5406,9 @@ int main()
       draw_menu(&oled0, current_menu, true);
 #endif
       
-      printf("\n\nPsion Organiser Datapack Tool\n\n");
-      
-      // Set up directions for the control lines
-      gpio_init(SLOT_SS_PIN);
-      gpio_init(SLOT_SCLK_PIN);
-      gpio_init(SLOT_SMR_PIN);
-      gpio_init(SLOT_SOE_PIN);
-      gpio_init(SLOT_SPGM_PIN);
-      
-      for(int i=0; i<8; i++)
-	{
-	  gpio_init(data_gpio[i]);
-	  gpio_set_dir(data_gpio[i], GPIO_IN);
-	}
-      
-      gpio_set_dir(SLOT_SS_PIN, GPIO_OUT);
-      gpio_set_dir(SLOT_SCLK_PIN, GPIO_OUT);
-      gpio_set_dir(SLOT_SMR_PIN, GPIO_OUT);
-      gpio_set_dir(SLOT_SOE_PIN, GPIO_OUT);
-      gpio_set_dir(SLOT_SPGM_PIN, GPIO_OUT);
-
-      // Drive data bus towards us
-      gpio_init(LS_DIR_PIN);
-      gpio_put(LS_DIR_PIN, 0);
-      
-      // LS_DIR is an output
-      gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
-      set_bus_inputs();
-      
       // Menu loop
       menuloop_done = 0;
+      stdio_flush();
       
       while(!menuloop_done)
 	{
