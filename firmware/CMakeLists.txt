@@ -13,6 +13,7 @@ set(PICO_SDK_PATH "/tree/downloaded_tools/pico/pico-sdk")
 include(pico_sdk_import.cmake)
 include(pico_extras_import.cmake)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 project(datapack_tool C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK

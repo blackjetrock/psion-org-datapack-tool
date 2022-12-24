@@ -303,7 +303,10 @@ int menuloop_done = 0;
 ////////////////////////////////////////////////////////////////////////////////
 
 word read_dir(void);
-  
+bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+
+////////////////////////////////////////////////////////////////////////////////
+
 #if !INIT_PAK_MEMORY
 volatile BYTE pak_memory[PAK_MEMORY_SIZE];
 #else
@@ -2909,9 +2912,12 @@ void to_home_menu(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
-void button_write(struct MENU_ELEMENT *e)
+// Write an OPK file from SD card to the datapack
+// Writes the previously selected file
+
+void button_write_file(struct MENU_ELEMENT *e)
 {
-  core_writefile(true);
+  write_opk_file(&oled0, current_file);
 
   loop_delay(3000000);
   draw_menu(&oled0, current_menu, true);
@@ -3257,7 +3263,7 @@ const struct MENU_ELEMENT test_menu[] =
 const struct MENU_ELEMENT home_menu[] =
   {
    {BUTTON_ELEMENT, "List",                       NULL,     button_list},
-   {BUTTON_ELEMENT, "Write",                      NULL,     button_write},
+   {BUTTON_ELEMENT, "Write File",                 NULL,     button_write_file},
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
    {SUB_MENU,       "Test",                       test_menu,     NULL},
    {BUTTON_ELEMENT, "Read",                       NULL,     button_read},
@@ -3589,13 +3595,16 @@ void update_buttons()
 //------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------
 
-void delayShort() { // 1 us delay
+void delayShort()
+{
+  // 1 us delay
   sleep_us(10);
 }
 
 //------------------------------------------------------------------------------------------------------
 
-void delayLong() { // 3 us delay
+void delayLong()
+{ // 3 us delay
   sleep_us(30);
 }
 
@@ -3657,12 +3666,21 @@ void packOutputAndSelect()
 //------------------------------------------------------------------------------------------------------
 
 void packDeselectAndInput()
-{ // deselects pack memory chip and sets pack pins to input
+{
+  printf("\ndeselect");
+  
+  // deselects pack memory chip and sets pack pins to input
   gpio_put(SLOT_SS_PIN, 1); // take memory chip select high - deselect pack
+  printf("\n1");
   delayShort();
+  printf("\n2");
   gpio_put(SLOT_SOE_PIN, 1); // disable output - pack ready for write
+  printf("\n3");
   delayShort(); // don't do anything until output disabled & pack data pins become input
+  printf("\n4");
   delayShort();
+  printf("\n5");
+  printf("\ndeselect done\n");
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -3875,6 +3893,7 @@ void printPageContents(byte page)
       
 	  nextAddress();
 	}
+
       printf(" ");
       printf("%s\n", str);
     
@@ -3885,6 +3904,7 @@ void printPageContents(byte page)
 	data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	printf("%s\n", buf);*/
     }
+  
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
 }
 
@@ -4214,6 +4234,137 @@ bool writePakByte(byte val, bool output)
       return false;        // false if write cannot be verified
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Writes an OPK file from the SD card to the currently attached datapak
+//
+////////////////////////////////////////////////////////////////////////////////
+
+bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
+{
+  // write PC serial data to pack
+  bool done_w = false;
+  word addr = 0;
+  char line[200];
+  
+  // Mount SD card
+  // Files are in PAK directory (like the pak-gadget)
+  
+  mount_sd();
+  
+  if( cd_to_pak_dir(slave) )
+    {
+      unmount_sd();
+      return;
+    }
+
+  oled_clear_display(slave);
+  oled_set_xy(slave, 0, 0);
+  sprintf(line, "Reading file");
+  oled_display_string(slave, line);
+  
+  oled_set_xy(slave, 0, 8);
+  sprintf(line, "%s", filename);
+  oled_display_string(slave, line);
+
+  sleep_ms(3000);
+  
+  // Read the file from the SD card into the pak memory
+  FIL fil;
+  FRESULT fr = f_open(&fil, filename, FA_READ);
+  
+  if (FR_OK != fr)
+    {
+      sprintf(line, "Failed to open:");
+      oled_clear_display(slave);
+      oled_set_xy(slave, 0, 0);
+      oled_display_string(slave, line);
+      
+      oled_set_xy(slave, 0, 7);
+      sprintf(line, "%s", filename);
+      oled_display_string(slave, line);
+
+      sleep_ms(3000);
+      unmount_sd();
+      return;
+    }
+
+  char opk_header[6];
+  char buf[1];
+  int pak_i = 0;
+  int br = 0;
+  bool done = false;
+  char name[80];
+  char extension[20];
+  bool modify_header = false;
+  int numBytes = 0;
+  
+  // If the extension is .opk then we drop the first 6 bytes
+  if( sscanf(filename, "%[^.].%s", name, extension) == 2 )
+    {
+      if( strcmp(extension, "opk") == 0 )
+	{
+	  // Read header to get pack size
+	  f_read(&fil, opk_header, sizeof(opk_header), &br);
+
+	  numBytes = opk_header[3]*256*256+opk_header[4]*256+opk_header[5];
+	  printf("\nOPK file data block length = 0x%06X (%d) bytes", numBytes, numBytes);
+	}
+    }
+
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 0); // take SLOT_SPGM_PIN low - select & program - need SLOT_SPGM_PIN low for CE_N low if OE_N high
+      program_low = true;
+    }
+
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  // Write the data
+
+  for (addr = 0; addr <= numBytes; addr++)
+    {
+      f_read(&fil, buf, sizeof buf, &br);
+      
+      if( br == 0 )
+	{
+	  // File is too short, exit
+	  printf("\nFile too short.");
+	  break;
+	}
+      
+      done_w = writePakByte(buf[0], false);
+      if (done_w == false)
+	{
+	  printf("\n(Ard) Write byte failed!");
+	  break;
+	}
+      nextAddress();
+    }
+  
+  f_close(&fil);
+  
+  oled_set_xy(slave, 0, 16);
+  sprintf(line, "%d bytes read", numBytes);
+  oled_display_string(slave, line);
+  
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 1); // take SLOT_SPGM_PIN high
+      program_low = false;
+    }
+  
+  if (done_w == true)
+    {
+      printf("\n(Ard) Write done ok");
+    }
+  
+  unmount_sd();
+  
+  return done_w;
+}
+
 
 //------------------------------------------------------------------------------------------------------
 
@@ -4648,6 +4799,8 @@ void serial_loop()
   
   if( (key = getchar_timeout_us(100)) != PICO_ERROR_TIMEOUT)
     {
+      printf("\nkey %d", key);
+      
       //char buf[15];
       //sprintf(buf, "(Ard) In: 0x%02x", byte(key)); // print input character
       //printf(buf);
@@ -4720,8 +4873,8 @@ void serial_loop()
 #if 0
 	      nextAddress();
 #else
-		  gpio_put(SLOT_SCLK_PIN, 1);
-		  gpio_put(SLOT_SCLK_PIN, 0);
+	      gpio_put(SLOT_SCLK_PIN, 1);
+	      gpio_put(SLOT_SCLK_PIN, 0);
 
 #endif
 
@@ -4917,13 +5070,15 @@ void serial_loop()
 	    break;
 	  }
 	  
-	default: {
-	  printf("\n(Ard) Command not recognised!");
-	  break;
-	}
+	default:
+	  {
+	    printf("\n(Ard) Command not recognised!");
+	    break;
+	  }
 	}    
-    }      
+    }
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // read the value on the data bus
@@ -5412,6 +5567,8 @@ int main()
       
       while(!menuloop_done)
 	{
+	  stdio_flush();
+	  
 #if OLED_ON
 	  // Run menu
 	  update_buttons();
