@@ -4481,7 +4481,7 @@ word read_dir(void)
 	{
 	  jump = (read_next_byte()<<8) + read_next_byte();
 	  
-	  printf("Long record, length = 0x08X", jump);
+	  printf("Long record, length = 0x%08X", jump);
 	} 
       else
 	{
