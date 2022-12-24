@@ -281,6 +281,7 @@ void button_display(struct MENU_ELEMENT *e);
 void button_list(struct MENU_ELEMENT *e);
 void button_pak_id(struct MENU_ELEMENT *e);
 void button_pak_hdr(struct MENU_ELEMENT *e);
+void button_blank(struct MENU_ELEMENT *e);
 
 //void but_ev_file_up();
 //void but_ev_file_down();
@@ -983,7 +984,7 @@ void i2c_release(I2C_PORT_DESC *port) {
 
 // Delay to slow down to I2C bus rates
 void i2c_delay(I2C_PORT_DESC *port) {
-  sleep_us(1);
+  loop_delay(1);
   return;
   volatile int i;
   for(i=0; i<1; i++)
@@ -3280,6 +3281,7 @@ const struct MENU_ELEMENT info_menu[] =
   {
    {BUTTON_ELEMENT, "Pack ID",                    NULL,     button_pak_id},
    {BUTTON_ELEMENT, "Pack Header",                NULL,     button_pak_hdr},
+   {BUTTON_ELEMENT, "Blank Check",                NULL,     button_blank},
    {BUTTON_ELEMENT, "Exit",                       NULL,     to_home_menu},
    {MENU_END,       "",                           NULL,     NULL},
   };
@@ -3624,14 +3626,14 @@ void update_buttons()
 void delayShort()
 {
   // 1 us delay
-  sleep_us(10);
+  loop_delay(10);
 }
 
 //------------------------------------------------------------------------------------------------------
 
 void delayLong()
 { // 3 us delay
-  sleep_us(30);
+  loop_delay(30);
 }
 
 // Switch data lines to inputs
@@ -3693,20 +3695,12 @@ void packOutputAndSelect()
 
 void packDeselectAndInput()
 {
-  printf("\ndeselect");
-  
   // deselects pack memory chip and sets pack pins to input
   gpio_put(SLOT_SS_PIN, 1); // take memory chip select high - deselect pack
-  printf("\n1");
   delayShort();
-  printf("\n2");
   gpio_put(SLOT_SOE_PIN, 1); // disable output - pack ready for write
-  printf("\n3");
   delayShort(); // don't do anything until output disabled & pack data pins become input
-  printf("\n4");
   delayShort();
-  printf("\n5");
-  printf("\ndeselect done\n");
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -4175,7 +4169,7 @@ bool writePakByte(byte val, bool output)
       
       if (datapak_mode)
 	{
-	  sleep_us(datapak_write_pulse); // delay for write
+	  loop_delay(datapak_write_pulse); // delay for write
 	}
       else
 	{
@@ -4237,7 +4231,7 @@ bool writePakByte(byte val, bool output)
     delayLong();  
 
     gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
-    sleep_us(datapak_write_pulse*3); // 3*delay for overwrite
+    loop_delay(datapak_write_pulse*3); // 3*delay for overwrite
 
     gpio_put(SLOT_SS_PIN, 1); // take CE_N high - deselect
     delayLong();  
@@ -4294,7 +4288,7 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   sprintf(line, "%s", filename);
   oled_display_string(slave, line);
 
-  sleep_ms(3000);
+  loop_delay(3000000);
   
   // Read the file from the SD card into the pak memory
   FIL fil;
@@ -4311,7 +4305,7 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
       sprintf(line, "%s", filename);
       oled_display_string(slave, line);
 
-      sleep_ms(3000);
+      loop_delay(3000000);
       unmount_sd();
       return;
     }
@@ -4811,14 +4805,14 @@ bool blank_check()
   packOutputAndSelect(); // Enable pack data bus output, then select it
   resetAddrCounter();
   
-  printf("\nBlank Check in 1k chunks '.'-blank 'x'-not blank");
+  printf("\nBlank Check in 1k chunks '.'-blank 'x'-not blank\n");
 
   bool blank = (readByte() == 0xff); // is 1st byte blank?
   bool blank_1k = blank; // is this 1k blank?
 
   //for (uint16_t i=1;(blank && (i <= max_eprom_size));i++) { // read bytes while blank or up to max_eprom_size
   
-  for (uint16_t i=1;i <= max_eprom_size;i++)
+  for (int i=1;i <= max_eprom_size;i++)
     {
       // read bytes up to max_eprom_size 
 
@@ -4841,9 +4835,53 @@ bool blank_check()
   
   printf("\nIs pack blank? : ");
   printf(blank ? "Yes" : "No");
+  printf("\n");
   packDeselectAndInput();               // deselect pack, then set pack data bus to input
 
   return blank;
+}
+
+
+void button_blank(struct MENU_ELEMENT *e)
+{
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+  resetAddrCounter();
+
+  oled_clear_display(&oled0);
+  oled_set_xy(&oled0, 0, 0);
+  oled_printf(&oled0, "Blank Check");
+
+  bool blank = (readByte() == 0xff); // is 1st byte blank?
+  bool blank_1k = blank; // is this 1k blank?
+
+  //for (uint16_t i=1;(blank && (i <= max_eprom_size));i++) { // read bytes while blank or up to max_eprom_size
+  
+  for (int i=1;i <= max_eprom_size;i++)
+    {
+      // read bytes up to max_eprom_size 
+
+      if (read_next_byte() != 0xff)
+	{
+	  // blank true if byte is 0xFF
+	  blank = false;
+	  blank_1k = false;
+	}
+      
+      if ((i % 1024) == 0)
+	{
+	  // every 1024 bytes print a dot (addr div 1024)
+	  // dot if blank, x if not, using conditional operator: (condition) ? true : false
+	  
+	  printf(blank_1k ? "." : "x"); 
+	  blank_1k = true; // reset blank for next 1k chunk
+	}
+    }
+  
+  oled_set_xy(&oled0, 0, 8);
+  oled_printf(&oled0, "%s", blank ? "Blank" : "Not blank");
+
+  packDeselectAndInput();               // deselect pack, then set pack data bus to input
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4944,11 +4982,11 @@ void serial_loop()
 	  gpio_put(VPP_ON_PIN, 0);
 	    
 	  gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
-	  sleep_ms(100);
+	  loop_delay(100000);
 	  
 	  gpio_put(SLOT_SMR_PIN, 0);
 
-	  sleep_ms(100);
+	  loop_delay(100000);
 	  gpio_put(SLOT_SOE_PIN, 0);
 	  gpio_put(SLOT_SPGM_PIN, 1);
 	  gpio_put(SLOT_SS_PIN, 0);
@@ -5150,7 +5188,7 @@ void serial_loop()
 	    do
 	      {
 		// tight_loop?
-		sleep_ms(1);
+		loop_delay(1000);
 	      }
 	    while (true);
 	    
@@ -5494,7 +5532,7 @@ int main()
 #endif
 
   stdio_init_all();
-  sleep_ms(2000);
+  loop_delay(2000000);
 
   printf("\n\nPsion Organiser Datapack Tool\n\n");
   printf("\nInitialising...");
@@ -5634,7 +5672,7 @@ int main()
 	  printf("\nSD card NOT OK");
 	}
 
-      sleep_ms(1000);
+      loop_delay(1000000);
 #endif
       
 #if 1
