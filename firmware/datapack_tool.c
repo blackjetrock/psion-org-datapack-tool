@@ -12,6 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <stdarg.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -278,6 +279,9 @@ struct MENU_ELEMENT
 
 void button_display(struct MENU_ELEMENT *e);
 void button_list(struct MENU_ELEMENT *e);
+void button_pak_id(struct MENU_ELEMENT *e);
+void button_pak_hdr(struct MENU_ELEMENT *e);
+
 //void but_ev_file_up();
 //void but_ev_file_down();
 void but_ev_file_select();
@@ -1266,6 +1270,7 @@ void oled_gap(I2C_SLAVE_DESC *slave);
 void oled_display_int(I2C_SLAVE_DESC *slave, long int n, int num_digits);
 void oled_display_string(I2C_SLAVE_DESC *slave, char *string);
 void oled_clear_display(I2C_SLAVE_DESC *slave);
+void oled_printf(I2C_SLAVE_DESC *slave, char *format, ...);
 
 void oled_setup(I2C_SLAVE_DESC *slave);
 void oled_display_scaled_string_xy(I2C_SLAVE_DESC *slave, char *string, int x, int y, int scale);
@@ -1651,6 +1656,18 @@ void oled_display_string(I2C_SLAVE_DESC *slave, char *string)
       oled_send_cmd(slave, 5, font_5x7_letters+((*string++) - ' ')*5, I2C_DATA, I2C_NO_REPEAT);
       oled_gap(slave);
     }
+}
+
+void oled_printf(I2C_SLAVE_DESC *slave, char *format, ...)
+{
+  char buffer[100];
+  va_list aptr;
+  int ret;
+  
+  va_start(aptr, format);
+  ret = vsprintf(buffer, format, aptr);
+  va_end(aptr);
+  oled_display_string(slave, buffer);
 }
 
 BYTE zero = 0;
@@ -3255,7 +3272,15 @@ void button_cycle_vpp(struct MENU_ELEMENT *e)
 const struct MENU_ELEMENT test_menu[] =
   {
    {BUTTON_ELEMENT, "Cycle Vpp",                  NULL,     button_cycle_vpp},
-   {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
+   {BUTTON_ELEMENT, "Exit",                       NULL,     to_home_menu},
+   {MENU_END,       "",                           NULL,     NULL},
+  };
+
+const struct MENU_ELEMENT info_menu[] =
+  {
+   {BUTTON_ELEMENT, "Pack ID",                    NULL,     button_pak_id},
+   {BUTTON_ELEMENT, "Pack Header",                NULL,     button_pak_hdr},
+   {BUTTON_ELEMENT, "Exit",                       NULL,     to_home_menu},
    {MENU_END,       "",                           NULL,     NULL},
   };
 
@@ -3266,6 +3291,7 @@ const struct MENU_ELEMENT home_menu[] =
    {BUTTON_ELEMENT, "Write File",                 NULL,     button_write_file},
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
    {SUB_MENU,       "Test",                       test_menu,     NULL},
+   {SUB_MENU,       "Info",                       info_menu,     NULL},
    {BUTTON_ELEMENT, "Read",                       NULL,     button_read},
    {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
    {MENU_END,       "",                           NULL,     NULL},
@@ -4566,6 +4592,7 @@ void incr_addr(uint16_t bytes) { // only used by Matt's code
   }
 }
 
+
 void print_pak_id()
 {
   // the first 2 bytes on a pack are the id and size bytes. id gives info about the pack
@@ -4594,6 +4621,66 @@ void print_pak_id()
   printf("\n7: ");    printf((id & 0x80)? "MK1"                 : "MK2");
 
   printf("\nSize: "); printf(pack_size); printf(" kB");
+}
+
+void button_pak_id(struct MENU_ELEMENT *e)
+{
+  // the first 2 bytes on a pack are the id and size bytes. id gives info about the pack
+
+  ArdDataPinsToInput();              // ensure Arduino data pins are set to input
+  packOutputAndSelect();             // Enable pack data bus output, then select it
+  resetAddrCounter();
+
+  byte id = readByte();
+  byte sz = read_next_byte();
+  byte pack_size = sz * 8;
+
+  packDeselectAndInput();            // deselect pack, then set pack data bus to input
+
+  oled_clear_display(&oled0);
+  
+  // print bit flag value using conditional operator: (condition) ? true : false
+
+  oled_set_xy(&oled0, 0, 0);
+  oled_printf(&oled0, "0: ");    oled_printf(&oled0, (id & 0x01)? "invalid"             : "valid");
+  oled_set_xy(&oled0, 64, 0);
+  oled_printf(&oled0, "1: ");    oled_printf(&oled0, (id & 0x02)? "datapak"             : "rampak");
+  oled_set_xy(&oled0, 0,  8);
+  oled_printf(&oled0, "2: ");    oled_printf(&oled0, (id & 0x04)? "paged"               : "linear");
+  oled_set_xy(&oled0, 0, 16);
+  oled_printf(&oled0, "3: ");    oled_printf(&oled0, (id & 0x08)? "not write protected" : "write protected");
+  oled_set_xy(&oled0, 0, 24);
+  oled_printf(&oled0, "4: ");    oled_printf(&oled0, (id & 0x10)? "non-bootable"        : "bootable");
+  oled_set_xy(&oled0, 0, 32);
+  oled_printf(&oled0, "5: ");    oled_printf(&oled0, (id & 0x20)? "copyable"            : "copy protected");
+  oled_set_xy(&oled0, 0, 40);
+  oled_printf(&oled0, "6: ");    oled_printf(&oled0, (id & 0x40)? "standard"            : "flash/dbg RAM");
+  oled_set_xy(&oled0, 0, 48);
+  oled_printf(&oled0, "7: ");    oled_printf(&oled0, (id & 0x80)? "MK1"                 : "MK2");
+}
+
+void button_pak_hdr(struct MENU_ELEMENT *e)
+{
+  // the first 2 bytes on a pack are the id and size bytes. id gives info about the pack
+
+  ArdDataPinsToInput();              // ensure Arduino data pins are set to input
+  packOutputAndSelect();             // Enable pack data bus output, then select it
+  resetAddrCounter();
+
+  byte id = readByte();
+  byte sz = read_next_byte();
+  byte pack_size = sz * 8;
+
+  packDeselectAndInput();            // deselect pack, then set pack data bus to input
+
+  oled_clear_display(&oled0);
+
+
+  oled_set_xy(&oled0, 0, 0);
+  oled_printf(&oled0, "Id Flags: %02X", id);
+  
+  oled_set_xy(&oled0, 0, 8);
+  oled_printf(&oled0, "Size: "); oled_printf(&oled0, pack_size); printf(" kB");
 }
 
 word read_dir(void)
