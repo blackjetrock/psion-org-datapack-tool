@@ -44,3 +44,18 @@ build directory as well. It is set up to use the TUI (Text User Interface)
 with the -tui command line option, but that can be removed for a standard
 gdb CLI experience.
 
+Running
+=======
+
+There is an interface on the OLED display that uses the buttons. 
+
+Left button:      Up
+Middle Button:    Down
+Right Button:     Action/Execute
+
+There is a menu system to access all the functions.
+
+There is also an interface that runs over the USB serial connectin from the 
+Pico on the PCB to a host PC. I use minicom on Linux but any terminal emulator should work, 
+e.g. the one in the Arduino SDK.
+
