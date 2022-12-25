@@ -309,6 +309,8 @@ int menuloop_done = 0;
 
 word read_dir(void);
 bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+void button_compare_file(struct MENU_ELEMENT *e);
+void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2128,7 +2130,7 @@ void button_list(struct MENU_ELEMENT *e)
   
   p_dir = cwdbuf;
 
-  printf("Directory Listing: %s\n", p_dir);
+  printf("\nDirectory Listing: %s\n", p_dir);
   
   DIR dj;      /* Directory object */
   FILINFO fno; /* File information */
@@ -2159,7 +2161,9 @@ void button_list(struct MENU_ELEMENT *e)
 	  // If the file has an extension of .opk then display it
 	  // otherwise ignore.
 	  extension[0] = '\0';
-	   
+
+	  printf("\n%s", fno.fname);
+	  
 	  if( sscanf(fno.fname, "%[^.].%s", name, extension) )
 	    {
 	      if( strcmp(extension, "opk") == 0 )
@@ -2179,6 +2183,7 @@ void button_list(struct MENU_ELEMENT *e)
 		       
 		      num_listfiles++;
 		    }
+		  
 		  // Next file
 		  file_n++;
 		}
@@ -2189,6 +2194,8 @@ void button_list(struct MENU_ELEMENT *e)
     }
   f_closedir(&dj);
 
+  printf("\n");
+  
   // terminate the menu
   listfiles[num_listfiles].text = "";
   listfiles[num_listfiles].type = MENU_END;
@@ -2941,6 +2948,17 @@ void button_write_file(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+// Compare an OPK file from SD card to the datapack
+// Compares the previously selected file
+
+void button_compare_file(struct MENU_ELEMENT *e)
+{
+  compare_opk_file(&oled0, current_file);
+
+  loop_delay(3000000);
+  draw_menu(&oled0, current_menu, true);
+}
+
 
 // The button function puts up to the first 7 files on screen then set sup a button handler
 // which will display subsequent pages.
@@ -3291,6 +3309,7 @@ const struct MENU_ELEMENT home_menu[] =
   {
    {BUTTON_ELEMENT, "List",                       NULL,     button_list},
    {BUTTON_ELEMENT, "Write File",                 NULL,     button_write_file},
+   {BUTTON_ELEMENT, "Compare File",               NULL,     button_compare_file},
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
    {SUB_MENU,       "Test",                       test_menu,     NULL},
    {SUB_MENU,       "Info",                       info_menu,     NULL},
@@ -3362,13 +3381,7 @@ void draw_menu(I2C_SLAVE_DESC *slave, struct MENU_ELEMENT *e, bool clear)
 
 	case SUB_MENU:
 	  oled_set_xy(slave, 0, i*8);
-	  //	  display.setCursor(0, i*8);
-	  //display.printChar(curs);
-	  if ( clear,1 )
-	    {
-	      oled_display_string(slave, etext);
-	      //	      display.println(etext);
-	    }
+	  oled_display_string(slave, etext);
 	  break;
 	}
 
@@ -3544,6 +3557,9 @@ void but_ev_select()
 	    {
 	    case SUB_MENU:
 	      current_menu = (struct MENU_ELEMENT *)e->submenu;
+	      menu_offset = 0;
+	      menu_selection = 0;
+	      
 	      draw_menu(&oled0, current_menu, true);
 	      break;
 	      
@@ -4257,6 +4273,166 @@ bool writePakByte(byte val, bool output)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+// Compares an OPK file from the SD card to the currently attached datapak
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename)
+{
+  bool done_w = false;
+  int addr = 0;
+  char line[200];
+  int datr = 0;
+  
+  // Mount SD card
+  // Files are in PAK directory (like the pak-gadget)
+  
+  mount_sd();
+  
+  if( cd_to_pak_dir(slave) )
+    {
+      unmount_sd();
+      return;
+    }
+
+  oled_clear_display(slave);
+  oled_set_xy(slave, 0, 0);
+  sprintf(line, "Reading file");
+  oled_display_string(slave, line);
+  
+  oled_set_xy(slave, 0, 8);
+  sprintf(line, "%s", filename);
+  oled_display_string(slave, line);
+
+  loop_delay(3000000);
+  
+  // Open file
+  FIL fil;
+  FRESULT fr = f_open(&fil, filename, FA_READ);
+  
+  if (FR_OK != fr)
+    {
+      sprintf(line, "Failed to open:");
+      oled_clear_display(slave);
+      oled_set_xy(slave, 0, 0);
+      oled_display_string(slave, line);
+      
+      oled_set_xy(slave, 0, 7);
+      sprintf(line, "%s", filename);
+      oled_display_string(slave, line);
+
+      loop_delay(3000000);
+      unmount_sd();
+      return;
+    }
+
+  char opk_header[6];
+  char buf[100];
+  int pak_i = 0;
+  int br = 0;
+  bool done = false;
+  char name[80];
+  char extension[20];
+  bool modify_header = false;
+  int numBytes = 0;
+  
+  // If the extension is .opk then read the header and get the file size
+  if( sscanf(filename, "%[^.].%s", name, extension) == 2 )
+    {
+      if( strcmp(extension, "opk") == 0 )
+	{
+	  // Read header to get pack size
+	  f_read(&fil, opk_header, sizeof(opk_header), &br);
+
+	  numBytes = opk_header[3]*256*256+opk_header[4]*256+opk_header[5];
+
+	  printf("\nOPK file data block length = 0x%06X (%d) bytes", numBytes, numBytes);
+	  loop_delay(3000000);
+	}
+    }
+
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 0); // take SLOT_SPGM_PIN low - select & program - need SLOT_SPGM_PIN low for CE_N low if OE_N high
+      program_low = true;
+    }
+
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  // Compare the data
+  // Assume the datapack data is the same as the SD file data
+  bool data_identical = true;
+  
+  for (addr = 0; addr <= numBytes;)
+    {
+      printf("\naddr:%d", addr);
+      
+      // Bytes from file
+      f_read(&fil, buf, sizeof buf, &br);
+
+      printf("\nbr=%d", br);
+
+      if( br==0 )
+	{
+	  break;
+	}
+      
+      // Compare bytes
+      for(int j=0; j<br; j++)
+	{
+	  // Byte from SD card
+	  datr = readByte();
+	  
+	  // Check byte
+	  if( j==50 )
+	    {
+	      printf("\n%d %d", buf[j], datr);
+	    }
+	  
+	  if( buf[j] != datr )
+	    {
+	      // Not the same, we have our answer...
+	      data_identical = false;
+	      addr = numBytes+1;
+	      break;
+	    }
+	  
+	  addr++;
+	  nextAddress();
+	}
+    }
+  
+  f_close(&fil);
+  
+  oled_set_xy(slave, 0, 16);
+  oled_printf(&oled0, "%d bytes read", numBytes);
+  
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 1); // take SLOT_SPGM_PIN high
+      program_low = false;
+    }
+  
+  if( data_identical )
+    {
+      oled_set_xy(slave, 0, 24);
+      oled_printf(&oled0, "Data is identical");
+      printf("\nData is identical\n");
+    }
+  else
+    {
+      oled_set_xy(slave, 0, 24);
+      oled_printf(&oled0, "Data not identical", numBytes);
+      printf("\nData not identical\n");
+    }
+  
+  unmount_sd();
+
+  return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
 // Writes an OPK file from the SD card to the currently attached datapak
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -4614,7 +4790,7 @@ void print_pak_id()
   printf("\n6: ");    printf((id & 0x40)? "standard"            : "flashpak or debug RAM pak");
   printf("\n7: ");    printf((id & 0x80)? "MK1"                 : "MK2");
 
-  printf("\nSize: "); printf(pack_size); printf(" kB");
+  printf("\nSize: "); printf("%d", pack_size); printf(" kB");
 }
 
 void button_pak_id(struct MENU_ELEMENT *e)
@@ -4669,12 +4845,11 @@ void button_pak_hdr(struct MENU_ELEMENT *e)
 
   oled_clear_display(&oled0);
 
-
   oled_set_xy(&oled0, 0, 0);
   oled_printf(&oled0, "Id Flags: %02X", id);
   
   oled_set_xy(&oled0, 0, 8);
-  oled_printf(&oled0, "Size: "); oled_printf(&oled0, pack_size); printf(" kB");
+  oled_printf(&oled0, "Size: "); oled_printf(&oled0, "%d", pack_size); printf(" kB");
 }
 
 word read_dir(void)
