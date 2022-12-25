@@ -59,3 +59,10 @@ There is also an interface that runs over the USB serial connectin from the
 Pico on the PCB to a host PC. I use minicom on Linux but any terminal emulator should work, 
 e.g. the one in the Arduino SDK.
 
+
+SD Card
+=======
+
+The SD card holds .opk images in a directory called 'PAK' that is located in the
+root directory of the SD card. The SD card is checked at power on and a message 
+appears on the OLED display indicating whether the check was OK or not.
