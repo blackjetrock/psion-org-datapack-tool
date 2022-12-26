@@ -18,7 +18,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "pico/stdlib.h"
-//#include "hardware/i2c.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "pico/multicore.h"
@@ -309,6 +308,7 @@ int menuloop_done = 0;
 
 word read_dir(void);
 bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 void button_compare_file(struct MENU_ELEMENT *e);
 void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 
@@ -2621,7 +2621,14 @@ void process_config_file(I2C_SLAVE_DESC *slave)
     {
       unmount_sd();
       return;
+    }  mount_sd();
+  
+  if( cd_to_pak_dir(slave) )
+    {
+      unmount_sd();
+      return;
     }
+
   
   oled_clear_display(slave);
   oled_set_xy(slave, 0, 0);
@@ -3257,12 +3264,51 @@ void button_send(struct MENU_ELEMENT *e)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//  Read the current file from SD card into the pak memory
+//
+// Read the datapack and write the contents to SD card
+//
+//
+////////////////////////////////////////////////////////////////////////////////
 
 void button_read(struct MENU_ELEMENT *e)
 {
-  core_read(&oled0, current_file);
+  // Find a filename that hasn't been used
+  char filename[20];
+  int file_index = 0;
+  
+  mount_sd();
+  
+  if( cd_to_pak_dir(&oled0) )
+    {
+      unmount_sd();
+      return;
+    }
 
+  for(;;)
+    {
+      sprintf(filename, "PAK%04d.OPK", file_index);
+      
+      FF_FILE *fp = ff_fopen(filename, "r");
+      
+      if (fp == NULL)
+	{
+	  // We have a filename we can use
+	  break;
+	}
+      else
+	{
+	  // Try the next index number
+	  file_index++;
+	  ff_fclose(fp);
+
+	}
+    }
+
+  unmount_sd();
+  
+  // We have a filename now, use it
+  read_opk_file(&oled0, filename);
+  
   draw_menu(&oled0, current_menu, true);
 }
 
@@ -3308,12 +3354,12 @@ const struct MENU_ELEMENT info_menu[] =
 const struct MENU_ELEMENT home_menu[] =
   {
    {BUTTON_ELEMENT, "List",                       NULL,     button_list},
-   {BUTTON_ELEMENT, "Write File",                 NULL,     button_write_file},
+   {BUTTON_ELEMENT, "Write File to Pak",          NULL,     button_write_file},
    {BUTTON_ELEMENT, "Compare File",               NULL,     button_compare_file},
    {BUTTON_ELEMENT, "Display",                    NULL,     button_display},
    {SUB_MENU,       "Test",                       test_menu,     NULL},
    {SUB_MENU,       "Info",                       info_menu,     NULL},
-   {BUTTON_ELEMENT, "Read",                       NULL,     button_read},
+   {BUTTON_ELEMENT, "Read Pak to File",           NULL,     button_read},
    {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
    {MENU_END,       "",                           NULL,     NULL},
   };
@@ -4555,6 +4601,127 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
     {
       printf("\n(Ard) Write done ok");
     }
+  
+  unmount_sd();
+  
+  return done_w;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Reads a datapack and writes the contents to an OPK file on the SD card
+//
+////////////////////////////////////////////////////////////////////////////////
+
+bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
+{
+  bool done_w = false;
+  word addr = 0;
+  char line[200];
+  
+  // Mount SD card
+  // Files are in PAK directory (like the pak-gadget)
+
+  printf("\nReading datapack to SD card file...");
+  
+  mount_sd();
+  
+  if( cd_to_pak_dir(slave) )
+    {
+      unmount_sd();
+      return;
+    }
+
+  oled_clear_display(slave);
+  oled_set_xy(slave, 0, 0);
+  oled_printf(&oled0, "Writing file");
+  
+  oled_set_xy(slave, 0, 8);
+  oled_printf(&oled0, "%s", filename);
+
+  loop_delay(3000000);
+  
+  // Write the data to the file
+  FIL fil;
+  FRESULT fr = f_open(&fil, filename, FA_CREATE_NEW | FA_WRITE);
+  
+  if (FR_OK != fr)
+    {
+      printf("\nFailed to open file '%s'", filename);
+      oled_clear_display(slave);
+      oled_set_xy(slave, 0, 0);
+      oled_printf(&oled0, "Failed to open:");
+      
+      oled_set_xy(slave, 0, 7);
+      oled_printf(&oled0, "%s", filename);
+
+      loop_delay(3000000);
+      unmount_sd();
+      return;
+    }
+
+  printf("\nOpened file '%s'", filename);
+  
+  char opk_header[6];
+  char buf[1];
+  int pak_i = 0;
+  int br = 0;
+  bool done = false;
+  char name[80];
+  char extension[20];
+  bool modify_header = false;
+  int numBytes = 0;
+
+  // Write an OPK file header.
+  
+  // If the extension is .opk then we drop the first 6 bytes
+  numBytes = 32*1024;
+
+  opk_header[0] = 'O';
+  opk_header[1] = 'P';
+  opk_header[2] = 'K';
+  opk_header[3] = (numBytes >> 16) & 0xff;
+  opk_header[4] = (numBytes >>  8) & 0xff;
+  opk_header[5] = (numBytes >>  0) & 0xff;
+  
+  f_write(&fil, opk_header, sizeof(opk_header), &br);
+
+  printf("\nOPK file header = %d %d %d %d %d %d",
+	 opk_header[0],
+	 opk_header[1],
+	 opk_header[2],
+	 opk_header[3],
+	 opk_header[4],
+	 opk_header[5]);
+	 
+  printf("\nDatapack length = 0x%06X (%d) bytes", numBytes, numBytes);
+
+
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  // Write the data
+
+  for (addr = 0; addr <= numBytes; addr++)
+    {
+      // Read a byte at a time
+      buf[0] = readByte();
+      f_write(&fil, buf, sizeof buf, &br);
+      
+      if( br == 0 )
+	{
+	  // File is too short, exit
+	  printf("\nwrite error");
+	  break;
+	}
+      nextAddress();
+    }
+  
+  f_close(&fil);
+  
+  oled_set_xy(slave, 0, 16);
+  oled_printf(&oled0, "%d bytes read", addr);
+  loop_delay(3000000);
   
   unmount_sd();
   
