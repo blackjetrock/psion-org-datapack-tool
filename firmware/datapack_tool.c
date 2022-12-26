@@ -311,6 +311,7 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 void button_compare_file(struct MENU_ELEMENT *e);
 void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+byte readByte();
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -3262,6 +3263,13 @@ void button_send(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+void button_auto_size(struct MENU_ELEMENT *e)
+{
+  auto_size(true);
+  draw_menu(&oled0, current_menu, true);
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -3312,6 +3320,160 @@ void button_read(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Auto size a datapack
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// This will not work with a blank datapack.
+
+uint8_t page0[256];
+int paged_size = 0;
+int linear_size = 0;
+uint32_t i;
+
+int check_for_page0(void)
+{
+
+  uint8_t byte;
+  
+  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
+  packOutputAndSelect();         // Enable pack data bus output then select it
+  resetAddrCounter();            // reset counters
+
+  // Skip page 0
+  for(int x=0; x<256; x++)
+    {
+      nextAddress();
+    }
+  
+  // Go to every page over the possible address range
+  for(int i=256; i<128*1024-256; i+=256)
+    {
+      // See if page0 is here
+      boolean matched = true;
+      
+      for(int j=0; j<256; j++)
+	{
+	  byte = readByte();
+	  
+	  //printf("\n Checking %02X against %02X at %06X", page0[j], byte, i);		 
+
+	  if( page0[j] == byte )
+	    {
+	      // Match
+	    }
+	  else
+	    {
+	      // No match
+	      matched = false;
+	    }
+	  nextAddress();
+	}
+
+      if( matched )
+	{
+	  // Page 0 has appeared here, so assume address range has wrapped
+	  // return start of matchinmg wrapped page
+	  packDeselectAndInput();
+	  return(i);
+	}
+    }
+
+  packDeselectAndInput();
+  return(i);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Auto size
+//
+////////////////////////////////////////////////////////////////////////////////
+
+
+void auto_size(int oled_nserial)
+{
+  // Take whatever datapack is attached and attempt to work out
+  // the size and addressing mode
+
+  // Check the first 256 bytes against other 256 byte pages. When we get a math,
+  // assume that is the same page and addressing has wrapped.
+
+  // Read the first page
+  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
+  packOutputAndSelect();         // Enable pack data bus output then select it
+  resetAddrCounter();            // reset counters
+
+  if( oled_nserial )
+    {
+      oled_clear_display(&oled0);
+      oled_set_xy(&oled0, 0, 0);
+      oled_printf(&oled0, "Auto Sizing Datapack");
+    }
+  
+  printf("\nAuto sizing datapack\n");
+  
+  printf("\nReading page 0");
+  
+  for(int i=0; i<256; i++)
+    {
+      if( (i%16)==0 )
+	{
+	  printf("\n%02X: ", i);
+	}
+      
+      page0[i] = readByte();
+      printf("%02X ", page0[i]);
+      
+      nextAddress();
+    }
+
+  packDeselectAndInput();
+
+  // We have a page0 that we can check for throughout the
+  // pack address range...
+  
+  // First, addressing mode
+  paged_addr = false;
+  linear_size = check_for_page0();
+  paged_addr = true;
+  paged_size = check_for_page0();
+
+
+  printf("\nPaged  addressing wrap:0x%06X (Size %d)", paged_size, paged_size);
+  printf("\nLinear addressing wrap:0x%06X (Size %d)", linear_size, linear_size);
+  int datapack_length;
+  if( paged_size > linear_size )
+    {
+      datapack_length = paged_size;
+      printf("\nPage addressed datapack");
+      paged_addr = true;
+    }
+  else
+    {
+      datapack_length = linear_size;
+      printf("\nLinear addressed datapack");
+      paged_addr = false;
+    }
+  printf("\n");
+
+  if( oled_nserial )
+    {
+      oled_set_xy(&oled0, 0, 8);
+      oled_printf(&oled0, "%d bytes", datapack_length);
+      oled_set_xy(&oled0, 0, 16);
+      oled_printf(&oled0, "%s", paged_addr?"Page":"Linear");
+      oled_set_xy(&oled0, 0, 24);
+      oled_printf(&oled0, " addressed pack");
+      loop_delay(5000000);
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Drives Vpp with square wave to test the switch circuit
@@ -3346,6 +3508,7 @@ const struct MENU_ELEMENT info_menu[] =
    {BUTTON_ELEMENT, "Pack ID",                    NULL,     button_pak_id},
    {BUTTON_ELEMENT, "Pack Header",                NULL,     button_pak_hdr},
    {BUTTON_ELEMENT, "Blank Check",                NULL,     button_blank},
+   {BUTTON_ELEMENT, "Auto Size",                  NULL,     button_auto_size},
    {BUTTON_ELEMENT, "Exit",                       NULL,     to_home_menu},
    {MENU_END,       "",                           NULL,     NULL},
   };
@@ -5510,6 +5673,10 @@ void serial_loop()
 	    printCommands();
 	    break;
 	  }
+
+	case 'z':
+	  auto_size(false);
+	  break;
 	  
 	case 'x':
 	  {
