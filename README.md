@@ -1,6 +1,22 @@
 # psion-org-datapack-tool
 Datapack tool for Psion Organisers
 
+![IMAG3168](https://user-images.githubusercontent.com/31587992/209526232-99ba6b44-1d84-4097-90fb-2453fb928703.jpg)
+
+Status
+======
+
+The code builds and can read datapack data. It can also write datapack data. issues:
+the OLED and buttons work and there are read and write and info options that work on th eOLED.
+A lot of funtionality is over USB serial.
+
+1. Flash packs can't be written.
+2. Read pak to file doesn't seem to give a valid opk file, not sure why
+3. Detection of all the diffferent pack addressing schemes and sizes isn't there, really.
+4. Could do with a detection routine.
+5. The code is untidy...
+6. The OLED and serial functions aren't very coherent.
+
 Building
 ========
 
