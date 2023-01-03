@@ -25,6 +25,10 @@ they are configured for my file system structure.
 They will have to be altered to match the location of your SDK, where the FAT
 FS library used will have to be located.
 
+Set the PICO_SDK_DIR environment variable to point to the Pico SDK directory: 
+
+export PICO_SDK_DIR=<where the Pico SDK is>
+
 create a 'build' directory in the 'firmware' directory and run:
 cmake ..
 
