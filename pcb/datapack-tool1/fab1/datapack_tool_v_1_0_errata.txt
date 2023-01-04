@@ -9,5 +9,6 @@ Psion Organiser datapack Tool V1.0 errata
 5. Pin 19 of U2 should go to GND (schematic issue)
 6. Data direction of U3 is wrong. Should be high as we want Pico to
    drive the signals to the slot.
-
+7. Make inductor footprint bigger/more universal to allow
+   selection of more inductors
 
