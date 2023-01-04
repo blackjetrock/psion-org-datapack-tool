@@ -12,3 +12,4 @@ Psion Organiser datapack Tool V1.0 errata
 7. Make inductor footprint bigger/more universal to allow
    selection of more inductors
 
+ 
