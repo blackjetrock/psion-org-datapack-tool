@@ -4860,7 +4860,8 @@ bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 	 
   printf("\nDatapack length = 0x%06X (%d) bytes", numBytes, numBytes);
 
-
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
   // Write the data

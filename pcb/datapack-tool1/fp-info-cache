@@ -1,4 +1,4 @@
--9204275018356061514
+-9204273355176674514
 8wTermBlk
 8wTermBlk
 
@@ -83181,12 +83181,19 @@ SRX882
 6
 6
 ajm_kicad
-SOIC-28W_7.5x18.7mm_P1.27mm
-SOIC, 28 Pin (https://www.akm.com/akm/en/file/datasheet/AK5394AVS.pdf#page=23), generated with kicad-footprint-generator ipc_gullwing_generator.py
-SOIC SO
+Conn_uSDcard
+
+
 0
-32
-32
+13
+9
+ajm_kicad
+PinHeader_2x08_P2.54mm_Horizontal_psionSide
+Through hole angled pin header, 2x08, 2.54mm pitch, 6mm pin length, double rows
+Through hole angled pin header THT 2x08 2.54mm double row
+0
+16
+16
 mirotan-due-cassette-shield
 AG12864E
 STN/FSTN LCD 128x64 dot https://www.digchip.com/datasheets/parts/datasheet/1121/AG-12864E-pdf.php
