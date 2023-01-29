@@ -41,8 +41,8 @@ boolean datapak_mode                = true;     // true for datapaks, false for 
 boolean program_low                 = false;    // will be set true when SLOT_SPGM_PIN is low during datapak write, so page counter can be pulsed accordingly
 const boolean force_write_cycles    = false;    // set true to perform max write cycles, without break for confirmed write
 const boolean overwrite             = false;    // set true to add a longer overwite after confirmed write
-const byte max_datapak_write_cycles = 5;        // max. no. of write cycle attempts before failure
-const byte datapak_write_pulse      = 100;      // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
+const byte max_datapak_write_cycles = 50 ;        // max. no. of write cycle attempts before failure
+const int datapak_write_pulse      = 100;      // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
 word current_address                = 0;
 #define max_eprom_size              0x8000      // max eprom size - 32k - only used by Matt's code
 
@@ -4394,7 +4394,8 @@ bool writePakByte(byte val, bool output)
       
       if (datapak_mode)
 	{
-	  loop_delay(datapak_write_pulse); // delay for write
+	  sleep_us(datapak_write_pulse);
+	  //loop_delay(datapak_write_pulse); // delay for write
 	}
       else
 	{
@@ -4456,7 +4457,8 @@ bool writePakByte(byte val, bool output)
     delayLong();  
 
     gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
-    loop_delay(datapak_write_pulse*3); // 3*delay for overwrite
+    sleep_us(datapak_write_pulse*3);
+    //loop_delay(datapak_write_pulse*3); // 3*delay for overwrite
 
     gpio_put(SLOT_SS_PIN, 1); // take CE_N high - deselect
     delayLong();  
