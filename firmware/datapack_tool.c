@@ -5255,6 +5255,50 @@ void print_pak_id()
   printf("\nSize: "); printf("%d", pack_size); printf(" kB");
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Prints the hardware ID byte that some packs have
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void print_hw_id()
+{
+  // the first 2 bytes on a pack are the id and size bytes. id gives info about the pack
+
+  ArdDataPinsToInput();              // ensure Arduino data pins are set to input
+
+  // SMR has to be high
+    
+  gpio_put(SLOT_SMR_PIN, 1);
+
+  packOutputAndSelect();             // Enable pack data bus output, then select it
+
+  byte id = readByte();
+
+  packDeselectAndInput();            // deselect pack, then set pack data bus to input
+      
+  gpio_put(SLOT_SMR_PIN, 0);
+  
+  printf("\n");
+  printf("Hardware ID  Byte: %02X\n", id);
+
+  switch(id)
+    {
+    case 1:
+      printf("RAM Pack\n");
+      break;
+
+    case 2:
+      printf("Flash Pack\n");
+      break;
+
+    default:
+      printf("Unknown Pack\n");
+      break;
+    }
+}
+
 void button_pak_id(struct MENU_ELEMENT *e)
 {
   // the first 2 bytes on a pack are the id and size bytes. id gives info about the pack
@@ -5783,6 +5827,10 @@ void serial_loop()
 	    printAddrMode();
 	    break;
 	  }
+
+	case 'H':
+	  print_hw_id();
+	  break;
 	  
 	case 'i':
 	  {// read pack id byte and print flag values
