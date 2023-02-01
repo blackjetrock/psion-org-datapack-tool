@@ -192,7 +192,7 @@ volatile int ss_page = 0;
 
 // Memory that emulates a pak
 typedef unsigned char BYTE;
-typedef void (*FPTR)();
+typedef void (*FPTR)(void);
 typedef void (*CMD_FPTR)(char *cmd);
 
 // The tracing was used for low level analysis of the protocol
@@ -2488,7 +2488,7 @@ void process_stdio(int cRxedChar)
        '\b' != cRxedChar    &&
        cRxedChar != (char)127)
     {
-    return;
+      return;
     }
   
   printf("%c", cRxedChar);  // echo
@@ -2561,7 +2561,7 @@ void process_stdio(int cRxedChar)
 ////////////////////////////////////////////////////////////////////////////////
 // Menu system
 //
-typedef void (*FPTR)();
+typedef void (*FPTR)(void);
 typedef void (*CMD_FPTR)(char *cmd);
 
 
@@ -4330,16 +4330,16 @@ word readAll(byte output)
 	  quit = true;                 // quit if reach packSize and readFixedsize is true
 	}
       
-    if (addr_tot >= 0xFF)
-      {
-	quit = true; // break loop if reach max size: (65536-1 bytes) 64k !!
-      }
+      if (addr_tot >= 0xFF)
+	{
+	  quit = true; // break loop if reach max size: (65536-1 bytes) 64k !!
+	}
     
-    if (quit != true)
-      {      
-	nextAddress();
-	addr_tot++;
-      }
+      if (quit != true)
+	{      
+	  nextAddress();
+	  addr_tot++;
+	}
     }
   
   packDeselectAndInput();       // deselect pack, then set pack data bus to input
@@ -4452,30 +4452,30 @@ bool writePakByte(byte val, bool output)
 	  delayShort();
 	}
       
-    if (datapak_mode)
-      {
-	gpio_put(VPP_ON_PIN, 0); // turn off VPP, 5V VCC goes off later
-	delayLong();
-	if (output)
-	  {
-	    printf("\n(Ard) Datapak write VPP off");
-	  }
-      }
+      if (datapak_mode)
+	{
+	  gpio_put(VPP_ON_PIN, 0); // turn off VPP, 5V VCC goes off later
+	  delayLong();
+	  if (output)
+	    {
+	      printf("\n(Ard) Datapak write VPP off");
+	    }
+	}
   
-    ArdDataPinsToInput();         // set Arduino data pins to input - for read    
-    packOutputAndSelect();        // Enable pack data bus output then select it
+      ArdDataPinsToInput();         // set Arduino data pins to input - for read    
+      packOutputAndSelect();        // Enable pack data bus output then select it
   
-    dat = readByte();             // read byte from datapak
+      dat = readByte();             // read byte from datapak
   
-    if (output)
-      {
-	printf("(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
-      }
+      if (output)
+	{
+	  printf("(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
+	}
     
-    if ((!force_write_cycles) && (dat == val))
-      {
-	break; // written ok, so break out of for-loop
-      }
+      if ((!force_write_cycles) && (dat == val))
+	{
+	  break; // written ok, so break out of for-loop
+	}
     }
   
   packDeselectAndInput(); // deselect pack, then set pack data bus to input (CE_N high, OE_N high)
@@ -4488,33 +4488,33 @@ bool writePakByte(byte val, bool output)
 	  printf("\n(Ard) Datapak write VPP on");
 	}
       
-    gpio_put(VPP_ON_PIN, 1); // turn on VPP, 5V VCC is on already
-    delayLong();
+      gpio_put(VPP_ON_PIN, 1); // turn on VPP, 5V VCC is on already
+      delayLong();
 
-    ArdDataPinsToOutput(); // set Arduino data pins to output - can't do this with Datapak also output! OE_N must be high
+      ArdDataPinsToOutput(); // set Arduino data pins to output - can't do this with Datapak also output! OE_N must be high
 
-    writeByte(val); // put value on Arduino data bus
-    delayLong();  
+      writeByte(val); // put value on Arduino data bus
+      delayLong();  
 
-    gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
-    sleep_us(datapak_write_pulse*3);
-    //loop_delay(datapak_write_pulse*3); // 3*delay for overwrite
+      gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
+      sleep_us(datapak_write_pulse*3);
+      //loop_delay(datapak_write_pulse*3); // 3*delay for overwrite
 
-    gpio_put(SLOT_SS_PIN, 1); // take CE_N high - deselect
-    delayLong();  
+      gpio_put(SLOT_SS_PIN, 1); // take CE_N high - deselect
+      delayLong();  
 
-    gpio_put(VPP_ON_PIN, 0); // turn off VPP, 5V VCC goes off later
-    delayLong();
+      gpio_put(VPP_ON_PIN, 0); // turn off VPP, 5V VCC goes off later
+      delayLong();
 
-    if (output)
-      {
-	printf("(Ard) Datapak write VPP off");
-      }
-  }
+      if (output)
+	{
+	  printf("(Ard) Datapak write VPP off");
+	}
+    }
   
   if (dat == val)
     {
-    return i;              // return no. of cycles if value written ok
+      return i;              // return no. of cycles if value written ok
     }
   else
     {
@@ -4936,7 +4936,7 @@ void read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 bool writePakSerial(word numBytes)
 {
   // write PC serial data to pack
-    bool done_w = false;
+  bool done_w = false;
 
 #if 0
   word addr = 0;
@@ -4963,17 +4963,17 @@ bool writePakSerial(word numBytes)
 	    }
 	}
 
-    byte datw = Serial.read(); // read byte value from serial
+      byte datw = Serial.read(); // read byte value from serial
     
-    Serial.write(datw); // write data back to PC to verify and control data flow
-    done_w = writePakByte(datw, /* output */ false); // write value to current memory address, no output because PC needs to verify data
+      Serial.write(datw); // write data back to PC to verify and control data flow
+      done_w = writePakByte(datw, /* output */ false); // write value to current memory address, no output because PC needs to verify data
     
-    if (done_w == false)
-      {
-	printf("\n(Ard) Write byte failed!");
-	break;
-      }
-    nextAddress();
+      if (done_w == false)
+	{
+	  printf("\n(Ard) Write byte failed!");
+	  break;
+	}
+      nextAddress();
     }
   
   if (datapak_mode)
@@ -5086,7 +5086,7 @@ void WriteMainRec(bool output)
 
 	  if (done_ok == false)
 	    {
-	    break;
+	      break;
 	    }
 	}
       
@@ -5480,7 +5480,7 @@ word read_dir(void)
   return current_address;
 }
 
-bool blank_check()
+void blank_check(void)
 {
   ArdDataPinsToInput(); // ensure Arduino data pins are set to input
   packOutputAndSelect(); // Enable pack data bus output, then select it
@@ -5519,7 +5519,6 @@ bool blank_check()
   printf("\n");
   packDeselectAndInput();               // deselect pack, then set pack data bus to input
 
-  return blank;
 }
 
 
@@ -5598,6 +5597,395 @@ void take_high(int gpio, char *gpio_name)
   gpio_put(gpio, 0);
 }
 
+void test1(void)
+{
+#if 1	  
+  ArdDataPinsToOutput();
+#endif
+  gpio_set_dir(SLOT_SD0_PIN, GPIO_OUT);
+#if 0
+  gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
+  gpio_put(LS_DIR_PIN, 1);
+#endif	  
+  
+  gpio_put(SLOT_SS_PIN, 0);
+  gpio_put(SLOT_SOE_PIN, 0);
+  gpio_put(SLOT_SPGM_PIN, 0);
+  gpio_put(SLOT_SMR_PIN, 0);
+  gpio_put(SLOT_SCLK_PIN, 0);
+  gpio_put(SLOT_SD0_PIN, 0);
+  gpio_put(SLOT_SD1_PIN, 0);
+  gpio_put(SLOT_SD2_PIN, 0);
+  gpio_put(SLOT_SD3_PIN, 0);
+  gpio_put(SLOT_SD4_PIN, 0);
+  gpio_put(SLOT_SD5_PIN, 0);
+  gpio_put(SLOT_SD6_PIN, 0);
+  gpio_put(SLOT_SD7_PIN, 0);
+	  
+  take_high(SLOT_SS_PIN, "SS");
+  take_high(SLOT_SOE_PIN, "SOE");
+  take_high(SLOT_SMR_PIN, "SMR");
+  take_high(SLOT_SPGM_PIN, "SPGM");
+  take_high(SLOT_SCLK_PIN, "SCLK");
+  take_high(SLOT_SD0_PIN, "SD0");
+  take_high(SLOT_SD1_PIN, "SD1");
+  take_high(SLOT_SD2_PIN, "SD2");
+  take_high(SLOT_SD3_PIN, "SD3");
+  take_high(SLOT_SD4_PIN, "SD4");
+  take_high(SLOT_SD5_PIN, "SD5");
+  take_high(SLOT_SD6_PIN, "SD6");
+  take_high(SLOT_SD7_PIN, "SD7");
+  ArdDataPinsToInput();
+}
+
+void test2(void)
+{
+#if 1	  
+  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
+  packOutputAndSelect();         // Enable pack data bus output then select it
+  resetAddrCounter();            // reset counters
+
+  gpio_put(VPP_ON_PIN, 0);
+	    
+  gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
+  loop_delay(100000);
+	  
+  gpio_put(SLOT_SMR_PIN, 0);
+
+  loop_delay(100000);
+  gpio_put(SLOT_SOE_PIN, 0);
+  gpio_put(SLOT_SPGM_PIN, 1);
+  gpio_put(SLOT_SS_PIN, 0);
+  delayShort();
+	  
+  for(int j=0; j<10; j++)
+    {
+      //byte dat = readByte(); // read Datapak byte at current address
+#if 0
+      nextAddress();
+#else
+      gpio_put(SLOT_SCLK_PIN, 1);
+      gpio_put(SLOT_SCLK_PIN, 0);
+
+#endif
+
+      for(int i=0; i<8; i++)
+	{
+	  printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
+	}
+	      
+      //printf("\nData byte:%02X\n", dat);
+    }
+  printf("\n");
+
+
+#endif
+}
+
+void serial_erase_bytes(void)
+{
+  if (!datapak_mode)
+    {
+      // 512 bytes for first 2 pages
+      printf("\n(Ard) Erase 512 bytes:");
+	      
+      // starting from 0, erase bytes
+      eraseBytes(0,512); 
+    }
+  else
+    {
+      printf("\n(Ard) Can't erase a Datapak! Use UV lamp, or a Rampak");
+    }
+}
+
+void serial_write_bytes(void)
+
+{
+  // This needs converting to C from Arduino library code.
+  // write pack from PC data
+  bool write_ok = false;
+	    
+  printf("\n(Ard) Write Serial data to pack");
+	    
+  // Check for "XXWrite" from PC to indicate following data is write data
+  char str[200] = "XXWrite";
+	    
+  if( 0 /* Wait for XXWrite */)
+    {
+      // waits for "XXWrite" to signal start of data, or until timeout
+		
+      byte numBytes[2] = {0};                             // byte array to store pack image size
+      //		byte bytes_read = Serial.readBytes(numBytes,2);     // read 2 bytes for pack size, will need to be 3 if pack > 64kB !
+
+      if (/*bytes_read == 2*/ 0)
+	{
+	  word numBytesTotal = (numBytes[0] << 8) + numBytes[1];   // shift 1st byte 8 bits left for high byte and add 2nd byte as low byte
+
+	  write_ok = writePakSerial(numBytesTotal);                // write numBytes from file
+
+	  char buf[30];
+	  sprintf(buf, "(Ard) Pack size to write was: %04x bytes", numBytesTotal);
+	  printf(buf); 
+	}
+      else
+	{
+	  printf("(Ard) Wrong no. of size bytes sent!");
+	}
+    }
+  else
+    {
+      printf("(Ard) No XXWrite to begin data");
+    }
+	  
+  if (write_ok == false)
+    {
+      printf("(Ard) Write failed!");
+    }
+
+} 
+
+void serial_read_bytes(void)
+  
+{
+  // read pack and send to PC
+	  
+  // 0 - no output, 1 - print data, 2 - dump data to serial
+  word endAddr = readAll(1); 
+  char buf[30];
+
+  // end address is same as size as address starts from 0, size starts from 1
+  printf("\n(Ard) Size of pack is: 0x%04x bytes\n", endAddr); 
+
+}
+
+void serial_read_p0(void)
+{
+  printf("(Ard) Page 0:");
+  printPageContents(0);              // print zero page - first 256 bytes of datapak
+}
+void serial_read_p1(void)
+{
+  printf("(Ard) Page 1:");
+  printPageContents(1);              // print zero page - first 256 bytes of datapak
+}
+void serial_read_p2(void)
+{
+  printf("(Ard) Page 2:");
+  printPageContents(2);              // print zero page - first 256 bytes of datapak
+}
+void serial_read_p3(void)
+{
+  printf("(Ard) Page 3:");
+  printPageContents(3);              // print zero page - first 256 bytes of datapak
+}
+
+void serial_toggle_pack_mode(void)
+{
+  datapak_mode = !datapak_mode;
+
+  if( datapak_mode )
+    {
+      printf("\ndatapak Mode");
+    }
+  else
+    {
+      printf("\nRAM pack Mode");
+    }
+}
+
+void serial_toggle_page_mode(void)
+{
+  paged_addr = 1-paged_addr; // toggle addressing mode
+  printAddrMode();
+}
+
+void serial_auto_size(void)
+{
+  auto_size(false);
+}
+
+void serial_write_main_rec(void)
+{
+  WriteMainRec(1);
+}
+
+void serial_read_dir_and_size_pack(void)
+{
+  // read dir and size pack
+
+  word pack_size = read_dir();
+
+  printf("\nPack size is: %08X", pack_size);
+}
+
+
+void serial_close_pack(void)
+{
+  {
+    // Close pack so it can be removed
+	    
+    // exit - set all control lines to input - pack will set default line states
+    gpio_set_dir(SLOT_SS_PIN,  GPIO_IN); // deselect first
+    gpio_set_dir(SLOT_SOE_PIN,  GPIO_IN);
+    gpio_set_dir(SLOT_SPGM_PIN, GPIO_IN);
+    gpio_set_dir(SLOT_SCLK_PIN, GPIO_IN);
+    gpio_set_dir(SLOT_SMR_PIN, GPIO_IN);
+	    
+    ArdDataPinsToInput();
+	    
+    printf("\n(Ard) Please Remove Rampak/Datapak");
+
+    //printf("XXExit"); // send exit command to PC
+#if 0	    
+    do
+      {
+	// tight_loop?
+	loop_delay(1000);
+      }
+    while (true);
+#endif
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void serial_help(void);
+
+typedef struct
+{
+  char key;
+  char *desc;
+  FPTR fn;
+} SERIAL_COMMAND;
+
+SERIAL_COMMAND serial_cmds[] =
+  {
+   {
+    '-',
+    "test function 1",
+    test1,
+   },
+   {
+    '=',
+    "Debug Test Option",
+    test2,
+   },
+   {
+    'h',
+    "Serial command help",
+    serial_help,
+   },
+   {
+    '?',
+    "Serial command help",
+    serial_help,
+   },
+   {
+    'e',
+    "Erase bytes",
+    serial_erase_bytes,
+   },
+   {
+    'w',
+    "Write bytes",
+    serial_write_bytes,
+   },
+   {
+    'r',
+    "Read bytes",
+    serial_read_bytes,
+   },
+   {
+    '0',
+    "Read page 0",
+    serial_read_p0,
+   },
+   {
+    '1',
+    "Read page 1",
+    serial_read_p1,
+   },
+   {
+    '2',
+    "Read page 2",
+    serial_read_p2,
+   },
+   {
+    '3',
+    "Read page 3",
+    serial_read_p3,
+   },
+   {
+    'u',
+    "Write test data",
+    write_test_data,
+   },
+   {
+    'v',
+    "Check test data",
+    check_test_data,
+   },
+   {
+    't',
+    "Add test record to main",
+    serial_write_main_rec,
+   },
+   {
+    'm',
+    "Toggle datapack and rampack modes",
+    serial_toggle_pack_mode,
+   },
+   {
+    'l',
+    "Toggle paged and linear mode",
+    serial_toggle_page_mode,
+   },
+   {
+    'H',
+    "Print hardware ID byte",
+    print_hw_id,
+   },
+   {
+    'i',
+    "Print header ID byte",
+    print_pak_id,
+   },
+   {
+    'b',
+    "Blank check",
+    blank_check,
+   },
+   {
+    'z',
+    "Auto size pack",
+    serial_auto_size,
+   },
+   {
+    'd',
+    "read dir and size pack",
+    serial_read_dir_and_size_pack,
+   },
+   {
+    'x',
+    "Close pack for removal",
+    serial_close_pack,
+   },
+   
+  };
+
+
+void serial_help(void)
+{
+  for(int i=0; i<sizeof(serial_cmds)/sizeof(SERIAL_COMMAND);i++)
+    {
+      printf("\n%c: %s", serial_cmds[i].key, serial_cmds[i].desc);
+    }
+  printf("\n");
+}
 
 void serial_loop()
 {
@@ -5610,304 +5998,26 @@ void serial_loop()
       //char buf[15];
       //sprintf(buf, "(Ard) In: 0x%02x", byte(key)); // print input character
       //printf(buf);
-      
-      switch (key)
+
+  for(int i=0; i<sizeof(serial_cmds)/sizeof(SERIAL_COMMAND);i++)
+    {
+      if( serial_cmds[i].key == key )
 	{
-	case '-':
-#if 1	  
-	  ArdDataPinsToOutput();
-#endif
-	  gpio_set_dir(SLOT_SD0_PIN, GPIO_OUT);
-#if 0
-	  gpio_set_dir(LS_DIR_PIN, GPIO_OUT);
-	  gpio_put(LS_DIR_PIN, 1);
-#endif	  
-
-	  gpio_put(SLOT_SS_PIN, 0);
-	  gpio_put(SLOT_SOE_PIN, 0);
-	  gpio_put(SLOT_SPGM_PIN, 0);
-	  gpio_put(SLOT_SMR_PIN, 0);
-	  gpio_put(SLOT_SCLK_PIN, 0);
-	  gpio_put(SLOT_SD0_PIN, 0);
-	  gpio_put(SLOT_SD1_PIN, 0);
-	  gpio_put(SLOT_SD2_PIN, 0);
-	  gpio_put(SLOT_SD3_PIN, 0);
-	  gpio_put(SLOT_SD4_PIN, 0);
-	  gpio_put(SLOT_SD5_PIN, 0);
-	  gpio_put(SLOT_SD6_PIN, 0);
-	  gpio_put(SLOT_SD7_PIN, 0);
-	  
-	  take_high(SLOT_SS_PIN, "SS");
-	  take_high(SLOT_SOE_PIN, "SOE");
-	  take_high(SLOT_SMR_PIN, "SMR");
-	  take_high(SLOT_SPGM_PIN, "SPGM");
-	  take_high(SLOT_SCLK_PIN, "SCLK");
-	  take_high(SLOT_SD0_PIN, "SD0");
-	  take_high(SLOT_SD1_PIN, "SD1");
-	  take_high(SLOT_SD2_PIN, "SD2");
-	  take_high(SLOT_SD3_PIN, "SD3");
-	  take_high(SLOT_SD4_PIN, "SD4");
-	  take_high(SLOT_SD5_PIN, "SD5");
-	  take_high(SLOT_SD6_PIN, "SD6");
-	  take_high(SLOT_SD7_PIN, "SD7");
-	  ArdDataPinsToInput();
-	  break;
-	  
-	  // Debug test option
-	case '=':
-#if 1	  
-	  ArdDataPinsToInput();          // ensure Arduino data pins are set to input
-	  packOutputAndSelect();         // Enable pack data bus output then select it
-	  resetAddrCounter();            // reset counters
-
-	  gpio_put(VPP_ON_PIN, 0);
-	    
-	  gpio_put(SLOT_SMR_PIN, 1);           // reset address counter - asynchronous, doesn't require SLOT_SS_PIN or OE_N
-	  loop_delay(100000);
-	  
-	  gpio_put(SLOT_SMR_PIN, 0);
-
-	  loop_delay(100000);
-	  gpio_put(SLOT_SOE_PIN, 0);
-	  gpio_put(SLOT_SPGM_PIN, 1);
-	  gpio_put(SLOT_SS_PIN, 0);
-	  delayShort();
-	  
-	  for(int j=0; j<10; j++)
-	    {
-	      //byte dat = readByte(); // read Datapak byte at current address
-#if 0
-	      nextAddress();
-#else
-	      gpio_put(SLOT_SCLK_PIN, 1);
-	      gpio_put(SLOT_SCLK_PIN, 0);
-
-#endif
-
-	      for(int i=0; i<8; i++)
-		{
-		  printf("\ndata line %d = %d", i, gpio_get(data_gpio[i]));
-		}
-	      
-	      //printf("\nData byte:%02X\n", dat);
-	    }
-	  printf("\n");
-
-
-#endif
-	  break;
-	  
-	case 'e' : { // erase bytes
-	  if (!datapak_mode)
-	    {
-	      // 512 bytes for first 2 pages
-	      printf("\n(Ard) Erase 512 bytes:");
-	      
-	      // starting from 0, erase bytes
-	      eraseBytes(0,512); 
-	    }
-	  else
-	    {
-	      printf("\n(Ard) Can't erase a Datapak! Use UV lamp, or a Rampak");
-	    }
+	  (*serial_cmds[i].fn)();
 	  break;
 	}
-	  
-	case 'w' :
-	  {
-	    // This needs converting to C from Arduino library code.
-	    // write pack from PC data
-	    bool write_ok = false;
-	    
-	    printf("\n(Ard) Write Serial data to pack");
-	    
-	    // Check for "XXWrite" from PC to indicate following data is write data
-	    char str[200] = "XXWrite";
-	    
-	    if( 0 /* Wait for XXWrite */)
-	      {
-		// waits for "XXWrite" to signal start of data, or until timeout
-		
-		byte numBytes[2] = {0};                             // byte array to store pack image size
-		//		byte bytes_read = Serial.readBytes(numBytes,2);     // read 2 bytes for pack size, will need to be 3 if pack > 64kB !
-
-		if (/*bytes_read == 2*/ 0)
-		  {
-		    word numBytesTotal = (numBytes[0] << 8) + numBytes[1];   // shift 1st byte 8 bits left for high byte and add 2nd byte as low byte
-
-		    write_ok = writePakSerial(numBytesTotal);                // write numBytes from file
-
-		    char buf[30];
-		    sprintf(buf, "(Ard) Pack size to write was: %04x bytes", numBytesTotal);
-		    printf(buf); 
-		  }
-		else
-		  {
-		    printf("(Ard) Wrong no. of size bytes sent!");
-		  }
-	      }
-	    else
-	      {
-		printf("(Ard) No XXWrite to begin data");
-	      }
-	  
-	    if (write_ok == false)
-	      {
-		printf("(Ard) Write failed!");
-	      }
-	    break;
-	  } 
-	
-	case 'r' :
-	  {
-	    // read pack and send to PC
-	  
-	    // 0 - no output, 1 - print data, 2 - dump data to serial
-	    word endAddr = readAll(1); 
-	    char buf[30];
-
-	    // end address is same as size as address starts from 0, size starts from 1
-	    printf("\n(Ard) Size of pack is: 0x%04x bytes\n", endAddr); 
-	    break;
-	  }
-	  
-	case '0':
-	  { // read page 0
-	    printf("(Ard) Page 0:");
-	    printPageContents(0);              // print zero page - first 256 bytes of datapak
-	    break;
-	  }
-      
-	case '1':
-	  { // read page 1
-	    printf("(Ard) Page 1:");
-	    printPageContents(1);                // print page 1 - second 256 bytes of datapak
-	    break;
-	  }
-	  
-	case '2':
-	  { // read page 2
-	    printf("(Ard) Page 2:");
-	    printPageContents(2); // print page 2 - third 256 bytes of datapak
-	    break;
-	  }
-	  
-	case '3':
-	  { // read page 3
-	    printf("(Ard) Page 3:");
-	    printPageContents(3); // print page 3 - fourth 256 bytes of datapak
-	    break;
-	  }
-
-	case 'u':
-	  write_test_data();
-	  break;
-
-	case 'v':
-	  check_test_data();
-	  break;
-	  
-	case 't':
-	  { // add test record to main
-	    printf("(Ard) add record to Main");
-	    WriteMainRec(true /*true for output */); // add a record to main
-	    break;
-	  }
-	  
-	case 'm':
-	  {// toggle between datapak and rampak modes
-	    datapak_mode = 1-datapak_mode; // toggle datapak mode
-	    printPackMode();
-	    break;
-	  }
-	  
-	case 'l':
-	  {// toggle between paged and linear addressing modes
-	    paged_addr = 1-paged_addr; // toggle addressing mode
-	    printAddrMode();
-	    break;
-	  }
-
-	case 'H':
-	  print_hw_id();
-	  break;
-	  
-	case 'i':
-	  {// read pack id byte and print flag values
-	    print_pak_id();
-	    break;
-	  }
-	  
-	case 'd':
-	  {
-	    // read dir and size pack
-
-	    word pack_size = read_dir();
-
-	    printf("\nPack size is: %08X", pack_size);
-	    break;
-	  }
-	  
-	case 'b':
-	  {// check if pack is blank
-	    blank_check();
-	    break;
-	  }
-
-	case 'h':
-	case '?':
-	  {
-	    // add test record to main
-	    printCommands();
-	    break;
-	  }
-
-	case 'z':
-	  auto_size(false);
-	  break;
-	  
-	case 'x':
-	  {
-	    // x to exit
-	    
-	    // exit - set all control lines to input - pack will set default line states
-	    gpio_set_dir(SLOT_SS_PIN,  GPIO_IN); // deselect first
-	    gpio_set_dir(SLOT_SOE_PIN,  GPIO_IN);
-	    gpio_set_dir(SLOT_SPGM_PIN, GPIO_IN);
-	    gpio_set_dir(SLOT_SCLK_PIN, GPIO_IN);
-	    gpio_set_dir(SLOT_SMR_PIN, GPIO_IN);
-	    
-	    ArdDataPinsToInput();
-	    
-	    printf("\n(Ard) Please Remove Rampak/Datapak");
-	    printf("XXExit"); // send exit command to PC
-	    
-	    do
-	      {
-		// tight_loop?
-		loop_delay(1000);
-	      }
-	    while (true);
-	    
-	    break;
-	  }
-	  
-	default:
-	  {
-	    printf("\n(Ard) Command not recognised!");
-	    break;
-	  }
-	}    
     }
-  else
-    {
-      // I have found that I need to send something if the serial USB times out
-      // otherwise I get lockups on the serial communications.
-      // So, if we get a timeout we send a spoace and backspace it. And
-      // flush the stdio, but that didn't fix the problem but seems like a good idea.
-      stdio_flush();
-      printf(" \b");
-    }
+
+}
+ else
+   {
+     // I have found that I need to send something if the serial USB times out
+     // otherwise I get lockups on the serial communications.
+     // So, if we get a timeout we send a spoace and backspace it. And
+     // flush the stdio, but that didn't fix the problem but seems like a good idea.
+     stdio_flush();
+     printf(" \b");
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6269,7 +6379,7 @@ int main()
   gpio_set_dir(SLOT_SOE_PIN, GPIO_OUT);
   gpio_set_dir(SLOT_SPGM_PIN, GPIO_OUT);
 
-    // Drive data bus towards us
+  // Drive data bus towards us
   gpio_init(LS_DIR_PIN);
   gpio_put(LS_DIR_PIN, 0);
 
