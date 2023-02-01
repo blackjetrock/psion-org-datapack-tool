@@ -4367,7 +4367,7 @@ bool writePakByteRampak(byte val) { // writes val to current address, returns tr
   byte dat = readByte(); // read byte from datapak
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
 
-  printf("\n %02X %02X", dat, val);
+  //printf("\n %02X %02X", dat, val);
   
   if (dat == val)
     {
@@ -5152,12 +5152,11 @@ void write_test_data(void)
 
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
-  printf("\nWriting test data");
+  printf("\nWriting test data\n");
   
   for (addr = 0; addr <= strlen(test_data); addr++)
     {
-      printf("\nByte %d", addr);
-      
+      printf(".");
       if( datapak_mode)
 	{
 	  done_w = writePakByte(test_data[addr], false);
@@ -5169,7 +5168,7 @@ void write_test_data(void)
       
       if (done_w == false)
 	{
-	  printf("\nWrite byte failed!");
+	  printf("\nWrite byte failed at byte %d (0x%04X)\n", addr, addr);
 	  break;
 	}
       nextAddress();
@@ -5210,7 +5209,7 @@ void check_test_data(void)
   for (addr = 0; addr <= strlen(test_data); addr++)
     {
       data = readByte(); // read byte from pack
-      printf("%c", (data==test_data[addr])?'.':'x');
+      printf("%c", (data==test_data[addr])?'.':test_data[addr]);
 
       nextAddress();
     }
