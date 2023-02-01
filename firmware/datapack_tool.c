@@ -5854,6 +5854,10 @@ void serial_loop()
     }
   else
     {
+      // I have found that I need to send something if the serial USB times out
+      // otherwise I get lockups on the serial communications.
+      // So, if we get a timeout we send a spoace and backspace it. And
+      // flush the stdio, but that didn't fix the problem but seems like a good idea.
       stdio_flush();
       printf(" \b");
     }
