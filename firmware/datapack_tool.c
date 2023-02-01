@@ -272,7 +272,7 @@ struct MENU_ELEMENT
 {
   enum ELEMENT_TYPE type;
   char *text;
-  void *submenu;
+  const void *submenu;
   void (*function)(struct MENU_ELEMENT *e);
 };
 
@@ -286,6 +286,17 @@ void button_blank(struct MENU_ELEMENT *e);
 //void but_ev_file_down();
 void but_ev_file_select();
 
+#define REAL_US_DELAYS 1
+
+#if REAL_US_DELAYS
+
+void loop_delay(int delay)
+{
+  sleep_us(delay);
+}
+
+#else
+
 void loop_delay(int delay)
 {
   volatile x, y;
@@ -298,6 +309,8 @@ void loop_delay(int delay)
     }
 }
 
+#endif
+
 int menuloop_done = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,16 +320,25 @@ int menuloop_done = 0;
 ////////////////////////////////////////////////////////////////////////////////
 
 word read_dir(void);
-bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
-bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+void write_opk_file(I2C_SLAVE_DESC *slave, char *filename);
+void read_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 void button_compare_file(struct MENU_ELEMENT *e);
 void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename);
 byte readByte();
+int cd_to_pak_dir(I2C_SLAVE_DESC *slave);
+void auto_size(int oled_nserial);
+void ArdDataPinsToOutput();
+void packOutputAndSelect();
+void packDeselectAndInput();
+byte readByte();
+void ArdDataPinsToInput(void);
+void nextAddress();
+void resetAddrCounter();
 
 ////////////////////////////////////////////////////////////////////////////////
 
 #if !INIT_PAK_MEMORY
-volatile BYTE pak_memory[PAK_MEMORY_SIZE];
+BYTE pak_memory[PAK_MEMORY_SIZE];
 #else
 
 // Complete 'angling' pack embedded in flash. It is probably possible to store
@@ -1266,7 +1288,7 @@ void i2c_init(I2C_PORT_DESC *port)
 #define I2C_REPEAT    1
 #define I2C_NO_REPEAT 0
 
-void oled_send_cmd(I2C_SLAVE_DESC *slave, int n, unsigned char *data, int command, int repeat);
+void oled_send_cmd(I2C_SLAVE_DESC *slave, int n, const unsigned char *data, int command, int repeat);
 void oled_set_xy(I2C_SLAVE_DESC *slave, int x, int y);
 void oled_set_pixel_xy(I2C_SLAVE_DESC *slave, int x, int y);
 void oled_set_byte_xy(I2C_SLAVE_DESC *slave, int x, int y, int b);
@@ -1304,7 +1326,7 @@ extern const unsigned char font_5x7_letters[];
 //#include "i2c_functions.h"
 //#include "oled096.h"
 
-void oled_send_cmd(I2C_SLAVE_DESC *slave, int n, unsigned char *data, int command, int repeat)
+void oled_send_cmd(I2C_SLAVE_DESC *slave, int n, const unsigned char *data, int command, int repeat)
 {
   int i;
 
@@ -1456,6 +1478,7 @@ int file_menu_size = 0;
 
 struct MENU_ELEMENT *last_menu;
 struct MENU_ELEMENT *the_home_menu;
+
 int menu_selection = 0;
 //unsigned int menu_size = 0;
 
@@ -2223,12 +2246,14 @@ void button_list(struct MENU_ELEMENT *e)
   unmount_sd();
 }
 
+#if 0
 void run_ls()
 {
   char *arg1 = strtok(NULL, " ");
   if (!arg1) arg1 = "";
   ls(arg1);
 }
+#endif
 
 void run_cat()
 {
@@ -2414,7 +2439,9 @@ const cmd_def_t cmds[] = {
 			   "  Remove directory and all of its contents.\n"
 			   "  <path> Specifies the name of the directory to be deleted.\n"
 			   "\te.g.: del_node /dir1"},
+#if 0
 			  {"ls", run_ls, "ls:\n  List directory"},
+#endif			  
 			  {"cat", run_cat, "cat <filename>:\n  Type file contents"},
 			  //    {"simple", simple, "simple:\n  Run simple FS tests"},
 			  {"big_file_test", run_big_file_test,
@@ -3920,12 +3947,16 @@ void packOutputAndSelect()
 
 void packDeselectAndInput()
 {
+  //  printf("\nDeselect 0");
+  
   // deselects pack memory chip and sets pack pins to input
   gpio_put(SLOT_SS_PIN, 1); // take memory chip select high - deselect pack
   delayShort();
   gpio_put(SLOT_SOE_PIN, 1); // disable output - pack ready for write
   delayShort(); // don't do anything until output disabled & pack data pins become input
   delayShort();
+
+  //printf("\nDeselect 1\n");
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -4149,6 +4180,7 @@ void printPageContents(byte page)
 	data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	printf("%s\n", buf);*/
     }
+  printf("\n");
   
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
 }
@@ -4335,8 +4367,16 @@ bool writePakByteRampak(byte val) { // writes val to current address, returns tr
   byte dat = readByte(); // read byte from datapak
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
 
-  if (dat == val) return true; // true if value written ok
-  else return false; // false if write cannot be verified
+  printf("\n %02X %02X", dat, val);
+  
+  if (dat == val)
+    {
+      return true; // true if value written ok
+    }
+  else
+    {
+      return false; // false if write cannot be verified
+    }
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -4648,7 +4688,7 @@ void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
+void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 {
   // write PC serial data to pack
   bool done_w = false;
@@ -4768,8 +4808,6 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
     }
   
   unmount_sd();
-  
-  return done_w;
 }
 
 
@@ -4779,7 +4817,7 @@ bool write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
+void read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 {
   bool done_w = false;
   word addr = 0;
@@ -4890,8 +4928,6 @@ bool read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   loop_delay(3000000);
   
   unmount_sd();
-  
-  return done_w;
 }
 
 
@@ -5093,6 +5129,100 @@ void incr_addr(uint16_t bytes) { // only used by Matt's code
   for (uint16_t i=0;i<bytes;i++) { // increase address while i < bytes
     nextAddress();
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Writes a test data pattern to the first few bytes of the pack
+//
+
+char test_data[] = "**Test data***01234567890===ABCDEFGHIJKLMNOPQRSTUVWXYZ--The second large piece of test text---(000000000000)(111111111111111111)(2222222222222222222222222222222222222222222222222222222222222222222222)";
+
+void write_test_data(void)
+{
+  int addr;
+  int done_w;
+  
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 0); // take SLOT_SPGM_PIN low - select & program -
+                                  // need SLOT_SPGM_PIN low for CE_N low if OE_N high
+      program_low = true;
+    }
+
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  printf("\nWriting test data");
+  
+  for (addr = 0; addr <= strlen(test_data); addr++)
+    {
+      printf("\nByte %d", addr);
+      
+      if( datapak_mode)
+	{
+	  done_w = writePakByte(test_data[addr], false);
+	}
+      else
+	{
+	  done_w = writePakByteRampak(test_data[addr]);
+	}
+      
+      if (done_w == false)
+	{
+	  printf("\nWrite byte failed!");
+	  break;
+	}
+      nextAddress();
+    }
+  
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 1); // take SLOT_SPGM_PIN high
+      program_low = false;
+    }
+
+  packDeselectAndInput(); // deselect pack, then set pack data bus to input
+  printf("\nDone");
+}
+
+// Checks the data in the datapack against the test data
+
+void check_test_data(void)
+{
+  int addr;
+  int done_w;
+  int data;
+
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 0); // take SLOT_SPGM_PIN low - select & program -
+                                  // need SLOT_SPGM_PIN low for CE_N low if OE_N high
+      program_low = true;
+    }
+  
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  printf("\nChecking test data\n");
+  
+  for (addr = 0; addr <= strlen(test_data); addr++)
+    {
+      data = readByte(); // read byte from pack
+      printf("%c", (data==test_data[addr])?'.':'x');
+
+      nextAddress();
+    }
+  
+  if (datapak_mode)
+    {
+      gpio_put(SLOT_SPGM_PIN, 1); // take SLOT_SPGM_PIN high
+      program_low = false;
+    }
+
+  packDeselectAndInput(); // deselect pack, then set pack data bus to input
+  printf("\nDone\n");
 }
 
 
@@ -5430,7 +5560,7 @@ void serial_loop()
 {
   int  key;
   
-  if( (key = getchar_timeout_us(100)) != PICO_ERROR_TIMEOUT)
+  if( (key = getchar_timeout_us(1000)) != PICO_ERROR_TIMEOUT)
     {
       printf("\nkey %d", key);
       
@@ -5625,6 +5755,14 @@ void serial_loop()
 	    printPageContents(3); // print page 3 - fourth 256 bytes of datapak
 	    break;
 	  }
+
+	case 'u':
+	  write_test_data();
+	  break;
+
+	case 'v':
+	  check_test_data();
+	  break;
 	  
 	case 't':
 	  { // add test record to main
@@ -5713,6 +5851,11 @@ void serial_loop()
 	    break;
 	  }
 	}    
+    }
+  else
+    {
+      stdio_flush();
+      printf(" \b");
     }
 }
 
@@ -6127,8 +6270,8 @@ int main()
 
   // Set up the OLED menu
   
-  current_menu = &(home_menu[0]);
-  last_menu = &(home_menu[0]);
+  current_menu = (struct MENU_ELEMENT *)&(home_menu[0]);
+  last_menu = (struct MENU_ELEMENT *)&(home_menu[0]);
   the_home_menu = last_menu;
 
   to_home_menu(NULL);
@@ -6200,10 +6343,11 @@ int main()
       
       // Menu loop
       menuloop_done = 0;
-      stdio_flush();
+      //stdio_flush();
       
       while(!menuloop_done)
 	{
+	  //	  printf("\nLoop0");
 	  stdio_flush();
 	  
 #if OLED_ON
@@ -6213,6 +6357,7 @@ int main()
 	  
 	  // Run serial interface
 	  serial_loop();
+	  //printf("\nLoop1\n");
 	}
     }
 }
