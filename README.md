@@ -6,10 +6,13 @@ Datapack tool for Psion Organisers
 Status
 ======
 
+** This is a work in progress and probably always will be **
+
 The code builds and can read datapack data. It can also write datapack data. issues:
 the OLED and buttons work and there are read and write and info options that work on the OLED.
 A lot of funtionality is over USB serial.
 
+0. There are errors on the fab1 PCB. these are listed in the errata. hand mods are needed to get the PCB to work.
 1. Flash packs can't be written.
 2. Read pak to file doesn't seem to give a valid opk file, not sure why
 3. Detection of all the diffferent pack addressing schemes and sizes isn't there, really.
