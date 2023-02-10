@@ -7,7 +7,7 @@ Status
 ======
 
 The code builds and can read datapack data. It can also write datapack data. issues:
-the OLED and buttons work and there are read and write and info options that work on th eOLED.
+the OLED and buttons work and there are read and write and info options that work on the OLED.
 A lot of funtionality is over USB serial.
 
 1. Flash packs can't be written.
