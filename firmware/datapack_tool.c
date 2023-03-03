@@ -3934,6 +3934,9 @@ void ArdDataPinsToOutput()
 
 void packOutputAndSelect()
 {
+  gpio_put(SLOT_SPGM_PIN, 0);
+  gpio_put(SLOT_SMR_PIN,  0);
+  
   // sets pack data pins to output and selects pack memory chip (EPROM or RAM)
   gpio_put(SLOT_SOE_PIN, 0);        // enable output - pack ready for read
   delayShort();                     // delay whilst pack data pins go to output
@@ -5758,6 +5761,45 @@ void serial_read_bytes(void)
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// read a byte from th epack
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void serial_read_byte(void)
+{
+  printf("Reading a byte");
+  
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+  resetAddrCounter(); // reset address counter
+  int data;
+
+  for(int j=0; j<0x15; j++)
+    {
+      nextAddress();
+    }
+
+  for(int i=0; i<5; i++)
+    {
+      int key;
+      
+      data = readByte(); 
+
+      printf("\nPress key\n");
+
+      while( (key = getchar_timeout_us(1000)) == PICO_ERROR_TIMEOUT)
+	{
+	}
+      
+      printf("\nRead 1:%02X", data);
+    }
+  
+  packDeselectAndInput(); 
+}
+
+
 void serial_read_p0(void)
 {
   printf("(Ard) Page 0:");
@@ -5973,6 +6015,11 @@ SERIAL_COMMAND serial_cmds[] =
     'x',
     "Close pack for removal",
     serial_close_pack,
+   },
+   {
+    '.',
+    "Read byte",
+    serial_read_byte,
    },
    
   };
