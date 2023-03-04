@@ -287,6 +287,7 @@ void button_blank(struct MENU_ELEMENT *e);
 void but_ev_file_select();
 
 #define REAL_US_DELAYS 1
+#define DELAY_FACTOR  100
 
 #if REAL_US_DELAYS
 
@@ -1009,7 +1010,7 @@ void i2c_release(I2C_PORT_DESC *port) {
 
 // Delay to slow down to I2C bus rates
 void i2c_delay(I2C_PORT_DESC *port) {
-  loop_delay(1);
+  sleep_us(1);
   return;
   volatile int i;
   for(i=0; i<1; i++)
@@ -3878,7 +3879,7 @@ void update_buttons()
 void delayShort()
 {
   // 1 us delay
-  loop_delay(10);
+  loop_delay(10*DELAY_FACTOR);
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -3935,6 +3936,7 @@ void ArdDataPinsToOutput()
 void packOutputAndSelect()
 {
   gpio_put(SLOT_SPGM_PIN, 0);
+  delayShort();
   gpio_put(SLOT_SMR_PIN,  0);
   
   // sets pack data pins to output and selects pack memory chip (EPROM or RAM)

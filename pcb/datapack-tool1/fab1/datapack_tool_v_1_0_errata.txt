@@ -11,5 +11,5 @@ Psion Organiser datapack Tool V1.0 errata
    drive the signals to the slot.
 7. Make inductor footprint bigger/more universal to allow
    selection of more inductors
-
+8. Add circuit to make VCC switchable.
  
