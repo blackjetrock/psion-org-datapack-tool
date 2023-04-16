@@ -53,7 +53,6 @@ word read_pack_size                 = 0x7e9b;   // set a fixed pack size for rea
 
 byte CLK_val                        = 0;        // flag to indicate CLK state
 
-
 // Use this if breakpoints don't work
 #define DEBUG_STOP {volatile int x = 1; while(x) {} }
 
@@ -63,10 +62,22 @@ byte CLK_val                        = 0;        // flag to indicate CLK state
 // Drop into a loop that displays key states and does nothing else
 #define KEY_DEBUG_ONLY                0
 
+// Adjustable delay in nextAddress for debug
+#define TUNED_CLK_DELAY  1
+
+// Do multiple reads of data and check for stability
+#define CHECK_STABLE     1
+#define INDICATE_UNSTABLE  1
+
+int page_byte_unstable[256];
+
 // Interrupts may muck up the pack interface, but it does seem to run with them enabled.
 // If USB is ever to work then interrupts need to be enabled.
 #define NO_INTERRUPTS_WHILE_POLLING   0
 #define TEST_STDIO                    0
+
+// Checksums of page data
+int last_checksum = 0;
 
 // Redefine pins to match our hardware
 // datapack tool port note:
@@ -189,11 +200,27 @@ volatile int soe_state = 1;
 volatile int ss_address = 0;
 volatile int ss_page = 0;
 
+// Manual mode states
+
+int man_smr_state  = 0;
+int man_sclk_state = 0;
+int man_spgm_state = 0;
+int man_soe_state  = 0;
+int man_ss_state   = 0;
 
 // Memory that emulates a pak
 typedef unsigned char BYTE;
 typedef void (*FPTR)(void);
 typedef void (*CMD_FPTR)(char *cmd);
+
+
+// Serial loop command structure
+typedef struct
+{
+  char key;
+  char *desc;
+  FPTR fn;
+} SERIAL_COMMAND;
 
 // The tracing was used for low level analysis of the protocol
 #define TRACE_LENGTH 2
@@ -4033,8 +4060,13 @@ void nextAddress()
       CLK_val = 0;
     }
 
+#if TUNED_CLK_DELAY
+  sleep_us(100);
+#else
+  
   delayShort(); // settling time, let datapak catch up with address
-
+#endif
+  
   current_address++;
 
   if (paged_addr && ((current_address & 0xFF) == 0))
@@ -4101,12 +4133,18 @@ void setAddress(word addr)
 
 void printPageContents(byte page)
 {
+  int csum = 0;
+  int i;
 
+  int linecsum[16];
+
+  
   // set address to start of page and print contents of page (256 bytes) to serial (formatted with addresses)
   
   ArdDataPinsToInput(); // ensure Arduino data pins are set to input
-  packOutputAndSelect(); // Enable pack data bus output, then select it
   resetAddrCounter(); // reset address counter
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+
   
   printf("%s\n", "addr  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  -------TEXT-------");
   printf("%s\n", "------------------------------------------------------  01234567  89ABCDEF"); // comment out to save memory
@@ -4130,8 +4168,17 @@ void printPageContents(byte page)
     {
       // loop through 0 to 255 in steps of 16, last step to 256
 
+      // Clear line checksums at start of each line
+      if( (base % 16)==0 )
+	{
+	  for(i=0; i<16; i++)
+	    {
+	      linecsum[i] = 0;
+	    }
+	}
+      
       byte data;
-      char str[19] = ""; // fill with zeros, 16+2+1, +1 for char zero terminator
+      char str[1000] = ""; // fill with zeros, 16+2+1, +1 for char zero terminator
 
       str[8] = 32; str[9] = 32; // gap in middle, 2 spaces
 
@@ -4150,10 +4197,62 @@ void printPageContents(byte page)
 	    {
 	      printf(" "); // at 0 or 7 print an extra spaces
 	    }
-	
+
+	  // read multiple times and check for stability
+#if CHECK_STABLE
+	  int stable = 1;
+	  
+	  int data0 = readByte();
+	  sleep_us(100);
+	  int data1 = readByte();
+	  sleep_us(100);
+	  int data2 = readByte();
+
+	  if( (data0 == data1) && (data0 == data2) )
+	    {
+	      stable = 1;
+	    }
+	  else
+	    {
+	      stable = 0;
+	    }
+	  
+#endif	  
 	  data = readByte(); // read byte from pack
+	  csum += data;
+
+	  // Work out line csums
+	  linecsum[base/16] += data;
+
+#if CHECK_STABLE
+	  if( !stable )
+	    {
+	      // reverse video this byte
+	      printf("\033[7m");
+#if INDICATE_UNSTABLE
+	      // Indicate it is an unstable byte
+	      page_byte_unstable[base+offset] = 1;
+#endif
+	    }
+
+
+
+#if INDICATE_UNSTABLE	  
+	  if( page_byte_unstable[base+offset] )
+	    {
+	      printf("\033[5m");
+	    }
+#endif	  
+
+	  if( stable && !page_byte_unstable[base+offset] )
+	    {
+	      printf("\033[m");
+	    }
+#endif
+	  
 	  sprintf(buf, "%02x ", data); // format data byte in hex
 	  printf(buf);
+
       
 	  if ((data > 31) && (data < 127))
 	    {
@@ -4175,8 +4274,12 @@ void printPageContents(byte page)
 	  nextAddress();
 	}
 
+#if CHECK_STABLE
+	  printf("\033[m");
+#endif
+
       printf(" ");
-      printf("%s\n", str);
+      printf("%s  %08X\n", str, linecsum[base / 16]);
     
       /*
 	char buf[80]; // buffer for sprintf - used too much memory
@@ -4186,7 +4289,10 @@ void printPageContents(byte page)
 	printf("%s\n", buf);*/
     }
   printf("\n");
-  
+  printf("Checksum:%d (0x%08X) Unchanged:%s\n", csum, csum, csum==last_checksum?"Yes":"No");
+  printf("\n");
+
+  last_checksum = csum;
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
 }
 
@@ -5891,6 +5997,295 @@ void serial_close_pack(void)
   }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+// Full Manual Mode
+//
+// Displays signal lines repeatedly
+// Allows signals to be adjusted
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void assert_ss(void)
+{
+  gpio_put(SLOT_SS_PIN, 1);
+  man_ss_state = 1;
+}
+
+void deassert_ss(void)
+{
+  gpio_put(SLOT_SS_PIN, 0);
+  man_ss_state = 0;
+}
+
+void assert_mr(void)
+{
+  gpio_put(SLOT_SMR_PIN, 1);
+  man_smr_state = 1;
+}
+
+void deassert_mr(void)
+{
+  gpio_put(SLOT_SMR_PIN, 0);
+  man_smr_state = 0;
+}
+
+void assert_clk(void)
+{
+  gpio_put(SLOT_SCLK_PIN, 1);
+  man_sclk_state = 1;
+}
+
+void deassert_clk(void)
+{
+  gpio_put(SLOT_SCLK_PIN, 0);
+  man_sclk_state = 0;
+}
+
+void assert_oe(void)
+{
+  gpio_put(SLOT_SOE_PIN, 1);        // enable output - pack ready for read
+  man_soe_state = 1;
+}
+
+void deassert_oe(void)
+{
+  gpio_put(SLOT_SOE_PIN, 0);        // enable output - pack ready for read
+  man_soe_state = 0;
+}
+
+void assert_pgm(void)
+{
+  gpio_put(SLOT_SPGM_PIN, 1);
+  man_spgm_state = 1;
+}
+
+void deassert_pgm(void)
+{
+  gpio_put(SLOT_SPGM_PIN, 0);
+  man_spgm_state = 0;
+}
+
+void issue_1_clock(void)
+{
+  if( man_sclk_state == 0 )
+    {
+      gpio_put(SLOT_SCLK_PIN, 1);
+      delayShort();
+      man_sclk_state = 1;
+    }
+  else
+    {
+      gpio_put(SLOT_SCLK_PIN, 0);
+      delayShort();
+      man_sclk_state = 0;
+    }
+}
+
+void issue_10_clocks(void)
+{
+  int i;
+
+  for(i=0; i<10; i++)
+    {
+      issue_1_clock();
+    }
+}
+
+void manual_help(void);
+void serial_full_manual(void);
+  
+SERIAL_COMMAND manual_cmds[] =
+  {
+   {
+    'h',
+    "Help",
+    manual_help,
+   },
+   {
+    '?',
+    "Serial command help",
+    manual_help,
+   },
+   {
+    'M',
+    "Assert MR",
+    assert_mr,
+   },
+   {
+    'm',
+    "De-assert MR",
+    deassert_mr,
+   },
+   {
+    'C',
+    "Assert CLK",
+    assert_clk,
+   },
+   {
+    'c',
+    "De-assert CLK",
+    deassert_clk,
+   },
+   {
+    'S',
+    "Assert SS",
+    assert_ss,
+   },
+   {
+    's',
+    "De-assert SS",
+    deassert_ss,
+   },
+   {
+    'O',
+    "Assert OE",
+    assert_oe,
+   },
+   {
+    'o',
+    "De-assert SS",
+    deassert_oe,
+   },
+   {
+    'P',
+    "Assert PGM",
+    assert_pgm,
+   },
+   {
+    'p',
+    "De-assert PGM",
+    deassert_pgm,
+   },
+   {
+    'x',
+    "Issue 10 clocks",
+    issue_10_clocks,
+   },
+   {
+    'i',
+    "Issue 1 clock",
+    issue_1_clock,
+   },
+   
+   {
+    'q',
+    "Exit manual mode",
+    manual_help,
+   },
+   
+  };
+
+void manual_help(void)
+{
+  for(int i=0; i<sizeof(manual_cmds)/sizeof(SERIAL_COMMAND);i++)
+    {
+      printf("\n%c: %s", manual_cmds[i].key, manual_cmds[i].desc);
+    }
+  printf("\n");
+}
+
+// Clears the screen
+void clear_screen(void)
+{
+  printf("\033[0;0H");  
+  printf("\033[2J");
+}
+
+
+// This function has its own serial loop
+
+void serial_full_manual(void)
+{
+  int  key;
+  int done = 0;
+  int count = 0;
+
+  assert_ss();
+  assert_mr();
+  assert_oe();
+  assert_clk();
+  assert_pgm();
+  
+  clear_screen();
+
+  printf("\033[10;0H");
+
+  while( !done )
+    {
+      count++;
+
+      if( (count % 100)==0 )
+	{
+	  // Save cursor
+	  printf("\033");
+	  printf("7");
+	  
+	  // Move to status line position
+	  printf("\033[5;0H");
+	  printf("%d Data=%02X", count, readByte());
+	  printf("   SS:%d SCLK:%d SOE:%d SMR:%d SPGM:%d",
+		 man_ss_state,
+		 man_sclk_state,
+		 man_soe_state,
+		 man_smr_state,
+		 man_spgm_state);
+		 
+	  // restore cursor
+	  printf("\033");
+	  printf("8");
+	}
+      
+      if( (key = getchar_timeout_us(1000)) != PICO_ERROR_TIMEOUT)
+	{
+	  if( key == 'q' )
+	    {
+	      done = 1;
+	    }
+	  
+	  //char buf[15];
+	  //sprintf(buf, "(Ard) In: 0x%02x", byte(key)); // print input character
+	  //printf(buf);
+	  
+	  for(int i=0; i<sizeof(manual_cmds)/sizeof(SERIAL_COMMAND);i++)
+	    {
+	      if( manual_cmds[i].key == key )
+		{
+		  (*manual_cmds[i].fn)();
+		  break;
+		}
+	    }
+	}
+      else
+	{
+	  // I have found that I need to send something if the serial USB times out
+	  // otherwise I get lockups on the serial communications.
+	  // So, if we get a timeout we send a spoace and backspace it. And
+	  // flush the stdio, but that didn't fix the problem but seems like a good idea.
+	  stdio_flush();
+	  printf(" \b");
+	}
+    }
+}
+
+void clear_unstable_flags(void)
+{
+  for(int i=0; i<256; i++)
+    {
+      page_byte_unstable[i] = 0;
+    }
+}
+
+int periodic_read = 0;
+
+void periodic_read_on(void)
+{
+  printf("\nPeriodic read on");
+  periodic_read = 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -5899,12 +6294,6 @@ void serial_close_pack(void)
 
 void serial_help(void);
 
-typedef struct
-{
-  char key;
-  char *desc;
-  FPTR fn;
-} SERIAL_COMMAND;
 
 SERIAL_COMMAND serial_cmds[] =
   {
@@ -5965,12 +6354,12 @@ SERIAL_COMMAND serial_cmds[] =
    },
    {
     'u',
-    "Write test data",
+    "Write test data to first few bytes",
     write_test_data,
    },
    {
     'v',
-    "Check test data",
+    "Check previously written test data",
     check_test_data,
    },
    {
@@ -6023,6 +6412,23 @@ SERIAL_COMMAND serial_cmds[] =
     "Read byte",
     serial_read_byte,
    },
+#if INDICATE_UNSTABLE   
+   {
+    ' ',
+    "Clear unstable flags",
+    clear_unstable_flags,
+   },
+#endif   
+   {
+    '*',
+    "Full Manual Mode",
+    serial_full_manual,
+   },
+   {
+    'p',
+    "Periodic read of page 0",
+    periodic_read_on,
+   },
    
   };
 
@@ -6036,37 +6442,62 @@ void serial_help(void)
   printf("\n");
 }
 
+//--------------------------------------------------------------------------------
+//
+//
+//--------------------------------------------------------------------------------
+
+int pcount = 0;
+
 void serial_loop()
 {
   int  key;
-  
-  if( (key = getchar_timeout_us(1000)) != PICO_ERROR_TIMEOUT)
+  int periodic_key = 0;
+
+  if( periodic_read )
     {
-      printf("\nkey %d", key);
+      pcount++;
+    }
+  
+  if( pcount >= 500 )
+    {
+      periodic_key = '0';
+      pcount = 0;
+    }
+  
+  if( ((key = getchar_timeout_us(1000)) != PICO_ERROR_TIMEOUT) || (periodic_key != 0))
+    {
+      if( periodic_key != 0 )
+	{
+	  key = periodic_key;
+	  periodic_key = 0;
+	}
+      
+      //      printf("\nkey %d", key);
       
       //char buf[15];
       //sprintf(buf, "(Ard) In: 0x%02x", byte(key)); // print input character
       //printf(buf);
-
-  for(int i=0; i<sizeof(serial_cmds)/sizeof(SERIAL_COMMAND);i++)
-    {
-      if( serial_cmds[i].key == key )
+      
+      for(int i=0; i<sizeof(serial_cmds)/sizeof(SERIAL_COMMAND);i++)
 	{
-	  (*serial_cmds[i].fn)();
-	  break;
+	  if( serial_cmds[i].key == key )
+	    {
+	      (*serial_cmds[i].fn)();
+	      break;
+	    }
 	}
+      
     }
-
-}
- else
-   {
-     // I have found that I need to send something if the serial USB times out
-     // otherwise I get lockups on the serial communications.
-     // So, if we get a timeout we send a spoace and backspace it. And
-     // flush the stdio, but that didn't fix the problem but seems like a good idea.
-     stdio_flush();
-     printf(" \b");
-   }
+  else
+    {
+      // I have found that I need to send something if the serial USB times out
+      // otherwise I get lockups on the serial communications.
+      // So, if we get a timeout we send a spoace and backspace it. And
+      // flush the stdio, but that didn't fix the problem but seems like a good idea.
+      stdio_flush();
+      printf(" \b");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
