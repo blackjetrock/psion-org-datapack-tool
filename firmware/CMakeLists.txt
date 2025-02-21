@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # initalize pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
-set(PICO_SDK_PATH "/tree/downloaded_tools/pico/pico-sdk")
+set(PICO_SDK_PATH "/home/menadue/pico/pico-sdk")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -20,7 +20,7 @@ project(datapack_tool C CXX ASM)
 pico_sdk_init()
 
 # SD FAT LIB
-add_subdirectory(/tree/downloaded_tools/pico/ajm-no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
+add_subdirectory(/home/menadue/pico/ajm-no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
 
 # Add executable. Default name is the project name, version 0.1
 
