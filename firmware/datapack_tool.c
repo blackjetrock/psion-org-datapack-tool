@@ -4931,7 +4931,7 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int checksum_pack(void)
+void checksum_pack(void)
 {
   int addr = 0;
   int csum = 0;
@@ -4941,7 +4941,7 @@ int checksum_pack(void)
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
   // Write the data
-  for (addr = 0; addr <= numBytes; addr++)
+  for (addr = 0; addr <= 16*1024; addr++)
     {
       // Read a byte at a time
       csum += readByte();
@@ -4949,8 +4949,6 @@ int checksum_pack(void)
     }
   
   printf("\nChecksum:%08X\n", csum);
-
-  return(csum);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
