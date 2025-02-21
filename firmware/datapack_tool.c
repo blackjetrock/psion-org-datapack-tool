@@ -2765,8 +2765,12 @@ void process_config_file(I2C_SLAVE_DESC *slave)
   unmount_sd();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
 // Read the file with the given name into the buffer
 // Pak images are in a directory called PAK
+//
+//
 
 void core_read(I2C_SLAVE_DESC *slave, char * arg)
 {
@@ -4921,6 +4925,33 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   unmount_sd();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Checksum the datapack
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int checksum_pack(void)
+{
+  int addr = 0;
+  int csum = 0;
+  
+  ArdDataPinsToInput(); // ensure Arduino data pins are set to input
+  packOutputAndSelect(); // Enable pack data bus output, then select it
+  resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
+
+  // Write the data
+  for (addr = 0; addr <= numBytes; addr++)
+    {
+      // Read a byte at a time
+      csum += readByte();
+      nextAddress();
+    }
+  
+  printf("\nChecksum:%08X\n", csum);
+
+  return(csum);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -6408,6 +6439,11 @@ SERIAL_COMMAND serial_cmds[] =
     serial_close_pack,
    },
    {
+    'k',
+    "Checksum pack",
+    checksum_pack,
+   },
+   {
     '.',
     "Read byte",
     serial_read_byte,
@@ -6830,7 +6866,7 @@ int main()
   stdio_init_all();
   loop_delay(2000000);
 
-  printf("\n\nPsion Organiser Datapack Tool\n\n");
+  printf("\n\nPsion Organiser Datapack Tool V2.1 Feb 2025\n\n");
   printf("\nInitialising...");
   printf("\nSetting GPIOs...");
   
@@ -6985,6 +7021,8 @@ int main()
       // Menu loop
       menuloop_done = 0;
       //stdio_flush();
+
+      printf("\nReady.\n");
       
       while(!menuloop_done)
 	{
