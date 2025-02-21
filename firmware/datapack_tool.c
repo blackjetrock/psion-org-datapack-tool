@@ -21,6 +21,7 @@
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "pico/multicore.h"
+#include "pico/bootrom.h"
 
 #include "f_util.h"
 
@@ -42,7 +43,7 @@ boolean program_low                 = false;    // will be set true when SLOT_SP
 const boolean force_write_cycles    = false;    // set true to perform max write cycles, without break for confirmed write
 const boolean overwrite             = false;    // set true to add a longer overwite after confirmed write
 const byte max_datapak_write_cycles = 50 ;        // max. no. of write cycle attempts before failure
-const int datapak_write_pulse      = 100;      // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
+const int datapak_write_pulse      = 1000;      // datapak write pulse in us, 1000 us = 1 ms, 10us write can be read by Arduino, but not Psion!
 word current_address                = 0;
 #define max_eprom_size              0x8000      // max eprom size - 32k - only used by Matt's code
 
@@ -3913,7 +3914,7 @@ void delayShort()
 
 void delayLong()
 { // 3 us delay
-  loop_delay(30);
+  loop_delay(30*DELAY_FACTOR);
 }
 
 // Switch data lines to inputs
@@ -3962,7 +3963,7 @@ void ArdDataPinsToOutput()
 
 void packOutputAndSelect()
 {
-  gpio_put(SLOT_SPGM_PIN, 0);
+  gpio_put(SLOT_SPGM_PIN, 1);
   delayShort();
   gpio_put(SLOT_SMR_PIN,  0);
   
@@ -4140,6 +4141,7 @@ void printPageContents(byte page)
 
   
   // set address to start of page and print contents of page (256 bytes) to serial (formatted with addresses)
+  packDeselectAndInput();
   
   ArdDataPinsToInput(); // ensure Arduino data pins are set to input
   resetAddrCounter(); // reset address counter
@@ -4477,8 +4479,6 @@ bool writePakByteRampak(byte val) { // writes val to current address, returns tr
   packOutputAndSelect(); // Enable pack data bus output then select it
   byte dat = readByte(); // read byte from datapak
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
-
-  //printf("\n %02X %02X", dat, val);
   
   if (dat == val)
     {
@@ -4486,6 +4486,8 @@ bool writePakByteRampak(byte val) { // writes val to current address, returns tr
     }
   else
     {
+      // Failed to write
+      printf("\nWrote %02X, read back %02X", val, dat);
       return false; // false if write cannot be verified
     }
 }
@@ -4540,7 +4542,8 @@ bool writePakByte(byte val, bool output)
 	{
 	  delayShort();
 	}
-      
+
+      gpio_put(SLOT_SPGM_PIN, 0);
       gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
       
       if (datapak_mode)
@@ -4572,7 +4575,8 @@ bool writePakByte(byte val, bool output)
 	      printf("\n(Ard) Datapak write VPP off");
 	    }
 	}
-  
+
+      gpio_put(SLOT_SPGM_PIN, 1);
       ArdDataPinsToInput();         // set Arduino data pins to input - for read    
       packOutputAndSelect();        // Enable pack data bus output then select it
   
@@ -4629,6 +4633,7 @@ bool writePakByte(byte val, bool output)
     }
   else
     {
+      printf("\nWrote %02X, read back %02X", val, dat);
       return false;        // false if write cannot be verified
     }
 }
@@ -4805,6 +4810,8 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   bool done_w = false;
   word addr = 0;
   char line[200];
+
+  printf("\nWriting file to datapack...");
   
   // Mount SD card
   // Files are in PAK directory (like the pak-gadget)
@@ -4821,6 +4828,8 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   oled_set_xy(slave, 0, 0);
   sprintf(line, "Reading file");
   oled_display_string(slave, line);
+
+  printf("\nReading file %s", filename);
   
   oled_set_xy(slave, 0, 8);
   sprintf(line, "%s", filename);
@@ -4877,12 +4886,22 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
       program_low = true;
     }
 
+  printf("\nWriting data...");
+  
+  // Deselect datapack
+  gpio_put(SLOT_SS_PIN, 1);
+  
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
   // Write the data
 
   for (addr = 0; addr <= numBytes; addr++)
     {
+      if( (addr %100)==0 )
+	{
+	  printf("\nProgramming byte %08X", addr);
+	}
+      
       f_read(&fil, buf, sizeof buf, &br);
       
       if( br == 0 )
@@ -4895,7 +4914,7 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
       done_w = writePakByte(buf[0], false);
       if (done_w == false)
 	{
-	  printf("\n(Ard) Write byte failed!");
+	  printf("\n(Ard) Write byte failed at address %08X", addr);
 	  break;
 	}
       nextAddress();
@@ -4915,7 +4934,7 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   
   if (done_w == true)
     {
-      printf("\n(Ard) Write done ok");
+      printf("\nWrite completed sucessfully\n");
     }
   
   unmount_sd();
@@ -4986,7 +5005,8 @@ void read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   char extension[20];
   bool modify_header = false;
   int numBytes = 0;
-
+  int checksum = 0;
+  
   // Write an OPK file header.
   
   // If the extension is .opk then we drop the first 6 bytes
@@ -5022,6 +5042,8 @@ void read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
       // Read a byte at a time
       buf[0] = readByte();
       f_write(&fil, buf, sizeof buf, &br);
+
+      checksum += buf[0];
       
       if( br == 0 )
 	{
@@ -5039,6 +5061,9 @@ void read_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   loop_delay(3000000);
   
   unmount_sd();
+
+  printf("\nFile data checksum = %08X\n", checksum);
+  
 }
 
 
@@ -6094,6 +6119,11 @@ void issue_10_clocks(void)
     }
 }
 
+void cli_boot_mass(void)
+{
+  reset_usb_boot(0,0);
+}
+
 void manual_help(void);
 void serial_full_manual(void);
   
@@ -6297,6 +6327,12 @@ void serial_help(void);
 
 SERIAL_COMMAND serial_cmds[] =
   {
+   {
+    '!',
+    "Boot to mass storage",
+    cli_boot_mass,
+   },
+
    {
     '-',
     "test function 1",
@@ -6859,6 +6895,9 @@ int main()
   gpio_set_dir(SLOT_SOE_PIN, GPIO_OUT);
   gpio_set_dir(SLOT_SPGM_PIN, GPIO_OUT);
 
+  // Deselect the datapack
+  gpio_put(SLOT_SS_PIN, 1);
+  
   // Drive data bus towards us
   gpio_init(LS_DIR_PIN);
   gpio_put(LS_DIR_PIN, 0);
