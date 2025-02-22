@@ -309,6 +309,7 @@ void button_list(struct MENU_ELEMENT *e);
 void button_pak_id(struct MENU_ELEMENT *e);
 void button_pak_hdr(struct MENU_ELEMENT *e);
 void button_blank(struct MENU_ELEMENT *e);
+void checksum_file_on_sd_card(I2C_SLAVE_DESC *slave, char *filename);
 
 //void but_ev_file_up();
 //void but_ev_file_down();
@@ -1520,7 +1521,11 @@ char names[MAX_LISTFILES][MAX_NAME];
 char current_file[MAX_NAME+1];
 int brightness_percent = 100;
 
+//------------------------------------------------------------------------------
+//
 // read the file with the given name into the buffer
+//
+//------------------------------------------------------------------------------
 
 void core_read(I2C_SLAVE_DESC *slave, char *arg);
 void i2c_send_bytes(I2C_SLAVE_DESC *slave, int n, BYTE *data);
@@ -3005,8 +3010,12 @@ void to_home_menu(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+//------------------------------------------------------------------------------
+//
 // Write an OPK file from SD card to the datapack
 // Writes the previously selected file
+//
+//------------------------------------------------------------------------------
 
 void button_write_file(struct MENU_ELEMENT *e)
 {
@@ -3016,6 +3025,18 @@ void button_write_file(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+//------------------------------------------------------------------------------
+
+void button_checksum_file(struct MENU_ELEMENT *e)
+{
+  checksum_file_on_sd_card(&oled0, current_file);
+
+  loop_delay(3000000);
+  draw_menu(&oled0, current_menu, true);
+}
+
+//------------------------------------------------------------------------------
+//
 // Compare an OPK file from SD card to the datapack
 // Compares the previously selected file
 
@@ -3086,6 +3107,8 @@ void but_ev_down()
   draw_menu(&oled0, current_menu, false);
   //  button_list(NULL);
 }
+
+//------------------------------------------------------------------------------
 
 // Store file name and exit menu
 // File can be read later
@@ -3380,6 +3403,138 @@ void button_read(struct MENU_ELEMENT *e)
   draw_menu(&oled0, current_menu, true);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+// Checksum a file on the SD card
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void checksum_file_on_sd_card(I2C_SLAVE_DESC *slave, char *filename)
+{
+  bool done_w = false;
+  word addr = 0;
+  char line[200];
+
+  printf("\nChecksum file...");
+  
+  // Mount SD card
+  // Files are in PAK directory (like the pak-gadget)
+  
+  mount_sd();
+  
+  if( cd_to_pak_dir(slave) )
+    {
+      unmount_sd();
+      return;
+    }
+
+  oled_clear_display(slave);
+  oled_set_xy(slave, 0, 0);
+  sprintf(line, "Checksum file");
+  oled_display_string(slave, line);
+
+  printf("\nChecksumming file %s", filename);
+  
+  oled_set_xy(slave, 0, 8);
+  sprintf(line, "%s", filename);
+  oled_display_string(slave, line);
+
+  loop_delay(3000000);
+  
+  // Read the file and checksum as we read
+  FIL fil;
+  FRESULT fr = f_open(&fil, filename, FA_READ);
+  
+  if (FR_OK != fr)
+    {
+      sprintf(line, "Failed to open:");
+      oled_clear_display(slave);
+      oled_set_xy(slave, 0, 0);
+      oled_display_string(slave, line);
+      
+      oled_set_xy(slave, 0, 7);
+      sprintf(line, "%s", filename);
+      oled_display_string(slave, line);
+
+      loop_delay(3000000);
+      unmount_sd();
+      return;
+    }
+
+  char opk_header[6];
+  char buf[1];
+  int pak_i = 0;
+  int br = 0;
+  bool done = false;
+  char name[80];
+  char extension[20];
+  bool modify_header = false;
+  int numBytes = 0;
+  
+  // If the extension is .opk then we drop the first 6 bytes
+  if( sscanf(filename, "%[^.].%s", name, extension) == 2 )
+    {
+      if( strcmp(extension, "opk") == 0 )
+	{
+	  // Read header to get pack size
+	  f_read(&fil, opk_header, sizeof(opk_header), &br);
+
+	  numBytes = opk_header[3]*256*256+opk_header[4]*256+opk_header[5];
+	  printf("\nOPK File. Data length taken from header");
+	  printf("\nOPK file data block length = 0x%06X (%d) bytes", numBytes, numBytes);
+	}
+    }
+
+  printf("\nSumming data...");
+
+  int checksum = 0;
+  int first_byte = -1;
+  int last_byte = -1;
+  
+  for (addr = 0; addr <= numBytes; addr++)
+    {
+      if( (addr % 100)==0 )
+	{
+	  //printf("\nSumming byte %08X", addr);
+	}
+      
+      f_read(&fil, buf, sizeof buf, &br);
+      
+      if( br == 0 )
+	{
+	  // File is too short, exit
+	  printf("\nFile too short.");
+	  break;
+	}
+
+      if( first_byte == -1 )
+	{
+	  first_byte = addr;
+	}
+
+      last_byte = addr;
+      checksum += buf[0];
+    }
+  
+  f_close(&fil);
+
+  printf("\nChecksum:%08X", checksum);
+  printf("\nAddress of first byte summed:%08X", first_byte);
+  printf("\nAddress of last  byte summed:%08X", last_byte);
+  printf("");
+  
+  oled_set_xy(slave, 0, 24);
+  sprintf(line, "CS%08X", checksum);
+  oled_display_string(slave, line);
+
+  oled_set_xy(slave, 0, 16);
+  sprintf(line, "%d bytes read", numBytes);
+  oled_display_string(slave, line);
+  
+  unmount_sd();
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3463,6 +3618,8 @@ void auto_size(int oled_nserial)
   // Check the first 256 bytes against other 256 byte pages. When we get a math,
   // assume that is the same page and addressing has wrapped.
 
+  printf("\nChecks for page 0 throughout the pack. If pack is blank then it cannot be detected. Does not write to pck\n");
+  
   // Read the first page
   ArdDataPinsToInput();          // ensure Arduino data pins are set to input
   packOutputAndSelect();         // Enable pack data bus output then select it
@@ -3583,6 +3740,7 @@ const struct MENU_ELEMENT home_menu[] =
    {SUB_MENU,       "Test",                       test_menu,     NULL},
    {SUB_MENU,       "Info",                       info_menu,     NULL},
    {BUTTON_ELEMENT, "Read Pak to File",           NULL,     button_read},
+   {BUTTON_ELEMENT, "Checksum File",              NULL,     button_checksum_file},
    {BUTTON_ELEMENT, "Exit",                       NULL,     button_exit},
    {MENU_END,       "",                           NULL,     NULL},
   };
@@ -3946,7 +4104,7 @@ void ArdDataPinsToInput(void)
       gpio_set_dir(data_pin[i], GPIO_IN);
     }
 
-  // 
+  //
 } 
 
 //------------------------------------------------------------------------------------------------------
@@ -4021,6 +4179,8 @@ void writeByte(byte data)
 {
   // Writes to Arduino data pins, assumes pins are in the output state
 
+  //printf("\nData:%02X", data);
+  
   for (byte i = 0; i <= 7; i += 1)
     {
       gpio_put(data_pin[i], data & 1);    // write data bits to data_pin[i], starting at LSB 
@@ -4585,10 +4745,11 @@ bool writePakByte(byte val, bool output)
       packOutputAndSelect();        // Enable pack data bus output then select it
   
       dat = readByte();             // read byte from datapak
+      dat = readByte();             // read byte from datapak
   
       if (output)
 	{
-	  printf("(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
+	  printf("\n(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
 	}
     
       if ((!force_write_cycles) && (dat == val))
@@ -4630,10 +4791,11 @@ bool writePakByte(byte val, bool output)
 	  printf("(Ard) Datapak write VPP off");
 	}
     }
-  
+
+  printf("\ndat:%02X val:%02X", dat, val);
   if (dat == val)
     {
-      return i;              // return no. of cycles if value written ok
+      return true;              // return no. of cycles if value written ok
     }
   else
     {
@@ -4745,6 +4907,7 @@ void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 
       if( br==0 )
 	{
+	  printf("\nEnd of file found at %08X", addr);
 	  break;
 	}
       
@@ -4765,6 +4928,8 @@ void compare_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 	      // Not the same, we have our answer...
 	      data_identical = false;
 	      addr = numBytes+1;
+
+	      printf("\nAddr:%08X  SD:%02X <> Pak:%02X\n", addr, datr, buf[j]);
 	      break;
 	    }
 	  
@@ -4914,8 +5079,9 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 	  printf("\nFile too short.");
 	  break;
 	}
+
+      done_w = writePakByte(buf[0], true);
       
-      done_w = writePakByte(buf[0], false);
       if (done_w == false)
 	{
 	  printf("\n(Ard) Write byte failed at address %08X", addr);
@@ -5369,12 +5535,21 @@ void check_test_data(void)
   
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
-  printf("\nChecking test data\n");
+  printf("\n\nChecking test data. Match is shown with a '.', any characters printed are a mismatch\n\n");
+
+  printf("\nTest Data->");
+  
+  for (addr = 0; addr <= strlen(test_data); addr++)
+    {
+      printf("%c", test_data[addr]);
+    }
+
+  printf("\nPack Data->");
   
   for (addr = 0; addr <= strlen(test_data); addr++)
     {
       data = readByte(); // read byte from pack
-      printf("%c", (data==test_data[addr])?'.':test_data[addr]);
+      printf("%c", data);
 
       nextAddress();
     }
@@ -5386,7 +5561,7 @@ void check_test_data(void)
     }
 
   packDeselectAndInput(); // deselect pack, then set pack data bus to input
-  printf("\nDone\n");
+  printf("\n\nDone\n");
 }
 
 
@@ -5962,6 +6137,7 @@ void serial_read_byte(void)
 }
 
 
+
 void serial_read_p0(void)
 {
   printf("(Ard) Page 0:");
@@ -5977,11 +6153,34 @@ void serial_read_p2(void)
   printf("(Ard) Page 2:");
   printPageContents(2);              // print zero page - first 256 bytes of datapak
 }
+
 void serial_read_p3(void)
 {
   printf("(Ard) Page 3:");
   printPageContents(3);              // print zero page - first 256 bytes of datapak
 }
+
+int current_page = 0;
+
+void serial_read_p_next(void)
+{
+  printf("(Ard) Page %d:", ++current_page);
+  printPageContents(current_page);              // print zero page - first 256 bytes of datapak
+}
+
+void serial_read_p_prev(void)
+{
+  current_page--;
+
+  if( current_page < 0 )
+    {
+      current_page = 0;
+    }
+  
+  printf("(Ard) Page %d:", current_page);
+  printPageContents(current_page);              // print zero page - first 256 bytes of datapak
+}
+
 
 void serial_toggle_pack_mode(void)
 {
@@ -6416,6 +6615,16 @@ SERIAL_COMMAND serial_cmds[] =
     '3',
     "Read page 3",
     serial_read_p3,
+   },
+   {
+    '>',
+    "Read next page",
+    serial_read_p_next,
+   },
+   {
+    '<',
+    "Read prev page",
+    serial_read_p_prev,
    },
    {
     'u',
