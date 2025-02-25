@@ -4707,7 +4707,7 @@ bool writePakByte(byte val, bool output)
 	  delayShort();
 	}
 
-      gpio_put(SLOT_SPGM_PIN, 0);
+      //gpio_put(SLOT_SPGM_PIN, 0);
       gpio_put(SLOT_SS_PIN, 0); // take CE_N low - select
       
       if (datapak_mode)
@@ -4740,7 +4740,7 @@ bool writePakByte(byte val, bool output)
 	    }
 	}
 
-      gpio_put(SLOT_SPGM_PIN, 1);
+      //gpio_put(SLOT_SPGM_PIN, 1);
       ArdDataPinsToInput();         // set Arduino data pins to input - for read    
       packOutputAndSelect();        // Enable pack data bus output then select it
   
@@ -4749,7 +4749,7 @@ bool writePakByte(byte val, bool output)
   
       if (output)
 	{
-	  printf("\n(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
+	  //printf("\n(Ard) Cycle: %02d, Write: %02x, Read: %02x", i, val, dat);
 	}
     
       if ((!force_write_cycles) && (dat == val))
@@ -4792,7 +4792,7 @@ bool writePakByte(byte val, bool output)
 	}
     }
 
-  printf("\ndat:%02X val:%02X", dat, val);
+  //printf("\ndat:%02X val:%02X", dat, val);
   if (dat == val)
     {
       return true;              // return no. of cycles if value written ok
@@ -5058,7 +5058,10 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
   printf("\nWriting data...");
   
   // Deselect datapack
+  // Removed to match write_test_data
+#if 1
   gpio_put(SLOT_SS_PIN, 1);
+#endif
   
   resetAddrCounter(); // reset address counters, after SLOT_SPGM_PIN low
 
@@ -5066,12 +5069,25 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 
   for (addr = 0; addr <= numBytes; addr++)
     {
-      if( (addr %100)==0 )
+      //printf("\nAddr:%08X", addr);
+
+      // Temp: Hard stop at 8K
+      if( addr > 8192 )
+	{
+	  printf("\nBreak 1");
+	  break;
+	}
+      
+      if( (addr % 100)==0 )
 	{
 	  printf("\nProgramming byte %08X", addr);
 	}
+
+      //printf("\nRead file");
       
       f_read(&fil, buf, sizeof buf, &br);
+
+      //printf("\nRead file done");
       
       if( br == 0 )
 	{
@@ -5080,7 +5096,14 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
 	  break;
 	}
 
+      // Writ eknown pattern to pack
+#if 1
+      done_w = writePakByte(addr % 256, true);
+#else
       done_w = writePakByte(buf[0], true);
+#endif
+      
+      printf("\nWrite byte done");
       
       if (done_w == false)
 	{
@@ -5106,7 +5129,10 @@ void write_opk_file(I2C_SLAVE_DESC *slave, char *filename)
     {
       printf("\nWrite completed sucessfully\n");
     }
-  
+
+  // Added as copy from write_test_data
+  packDeselectAndInput(); // deselect pack, then set pack data bus to input
+
   unmount_sd();
 }
 
